@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Tablas AR sin marcadores</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Multiplicación AR sin marcadores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/webxr/ARButton.js"></script>
   <style>
@@ -13,23 +13,24 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(255,255,255,0.8);
-      padding: 10px 20px;
+      background: rgba(255,255,255,0.85);
+      padding: 12px 20px;
       border-radius: 12px;
       font-size: 20px;
-      z-index: 2;
+      font-family: sans-serif;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
-  <div id="pregunta">Cargando pregunta...</div>
+  <div id="pregunta">Cargando...</div>
   <audio id="acierto" src="https://cdn.pixabay.com/audio/2022/03/15/audio_dff3cf6760.mp3" preload="auto"></audio>
 
   <script>
-    let camera, scene, renderer;
-    let respuestaCorrecta = null;
-    let acertado = false;
+    let scene, camera, renderer;
     let respuestas = [];
+    let correcta = null;
+    let acertado = false;
 
     init();
 
@@ -42,15 +43,12 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      const button = ARButton.createButton(renderer, {
+      document.body.appendChild(ARButton.createButton(renderer, {
         requiredFeatures: ['hit-test']
-      });
-      document.body.appendChild(button);
+      }));
 
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      scene.add(light);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
 
-      // Genera una multiplicación
       generarPregunta();
 
       renderer.setAnimationLoop(() => {
@@ -60,43 +58,44 @@
     }
 
     function generarPregunta() {
-      // Borra anteriores
-      respuestas.forEach(obj => scene.remove(obj));
+      respuestas.forEach(r => scene.remove(r.mesh));
       respuestas = [];
       acertado = false;
 
       const a = Math.floor(Math.random() * 9 + 2);
       const b = Math.floor(Math.random() * 9 + 2);
       const resultado = a * b;
-      document.getElementById("pregunta").textContent = `¿Cuánto es ${a} × ${b}?`;
-      respuestaCorrecta = resultado.toString();
+      correcta = resultado;
 
-      // Genera 2 respuestas falsas únicas
-      let opciones = new Set([respuestaCorrecta]);
+      document.getElementById("pregunta").textContent = `¿Cuánto es ${a} × ${b}?`;
+
+      let opciones = new Set([resultado]);
       while (opciones.size < 3) {
-        let n = Math.floor(Math.random() * 81) + 10;
-        opciones.add(n.toString());
+        let n = Math.floor(Math.random() * 81 + 10);
+        opciones.add(n);
       }
 
-      // Mezcla y crea texto en el espacio
-      const arrayOpciones = Array.from(opciones).sort(() => Math.random() - 0.5);
-      const posiciones = [[0, 0, -1.5], [-0.6, 0.2, -1.2], [0.6, -0.2, -1.4]];
+      const arr = Array.from(opciones).sort(() => Math.random() - 0.5);
+      const posiciones = [[-0.6, 0, -1.5], [0, 0.2, -2], [0.6, 0, -1.5]];
 
-      const loader = new THREE.FontLoader();
-      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
-        arrayOpciones.forEach((valor, i) => {
-          const geometry = new THREE.TextGeometry(valor, {
-            font: font,
-            size: 0.3,
-            height: 0.05
-          });
-          const material = new THREE.MeshBasicMaterial({ color: 0xff4444 });
-          const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(...posiciones[i]);
-          mesh.name = valor;
-          scene.add(mesh);
-          respuestas.push(mesh);
-        });
+      arr.forEach((val, i) => {
+        const geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 256, 256);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 100px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(val.toString(), 128, 128);
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(...posiciones[i]);
+        scene.add(cube);
+        respuestas.push({ valor: val, mesh: cube });
       });
     }
 
@@ -104,19 +103,19 @@
       const camPos = new THREE.Vector3();
       camera.getWorldPosition(camPos);
 
-      for (let obj of respuestas) {
+      for (let r of respuestas) {
         const objPos = new THREE.Vector3();
-        obj.getWorldPosition(objPos);
+        r.mesh.getWorldPosition(objPos);
         const distancia = camPos.distanceTo(objPos);
 
-        if (distancia < 0.4) {
-          if (obj.name === respuestaCorrecta) {
+        if (distancia < 0.5) {
+          if (r.valor === correcta) {
             document.getElementById("pregunta").textContent = "¡Correcto!";
             document.getElementById("acierto").play();
             acertado = true;
             setTimeout(generarPregunta, 2000);
           } else {
-            document.getElementById("pregunta").textContent = "Incorrecto. Acércate a otra.";
+            document.getElementById("pregunta").textContent = "❌ Incorrecto";
           }
           break;
         }
