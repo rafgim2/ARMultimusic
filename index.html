@@ -14,7 +14,7 @@
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255,255,255,0.8);
       padding: 10px;
       border-radius: 5px;
       z-index: 10;
@@ -35,8 +35,9 @@
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasPlayedSound = false; // Bandera para evitar múltiples reproducciones
+    let hasCollided = false; // Bandera para evitar múltiples colisiones
     const questionDiv = document.getElementById('question');
+    const collisionThreshold = 0.2; // Distancia en metros para considerar "colisión"
 
     // Inicializa la escena, genera la pregunta, crea los paneles de respuesta y arranca la animación
     init();
@@ -68,7 +69,7 @@
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-      // Configurar el render con fondo transparente (para ver la cámara real)
+      // Configurar el render con fondo transparente para ver la cámara real
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -96,34 +97,34 @@
     // Crea los paneles con las respuestas (incluye la respuesta correcta y tres incorrectas)
     function createAnswerObjects() {
       // Eliminar paneles previos
-      answers.forEach(answer => scene.remove(answer));
+      answers.forEach(panel => scene.remove(panel));
       answers = [];
 
-      // Genera tres respuestas incorrectas
+      // Genera tres respuestas incorrectas (números entre 1 y 100 que no sean iguales a la respuesta correcta)
       const wrongAnswers = new Set();
       while (wrongAnswers.size < 3) {
         let wrong = Math.floor(Math.random() * 100) + 1;
         if (wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
       const answersArray = [correctAnswer, ...wrongAnswers];
-      // Baraja las respuestas para ubicar aleatoriamente la correcta
+      // Barajar las respuestas para ubicar aleatoriamente la correcta
       answersArray.sort(() => Math.random() - 0.5);
 
-      // Distribuir las respuestas en un arco horizontal (de -45° a 45°) a 0.8 m de la cámara (más separadas)
+      // Distribuir los paneles en un arco horizontal a 0.8 m de la cámara (más separados)
       const radius = 0.8;
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
 
       answersArray.forEach((num, index) => {
-        // Crear un canvas para dibujar el número
+        // Crear un canvas para dibujar el número en un panel pequeño
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
         const context = canvas.getContext('2d');
         context.fillStyle = '#FFFFFF';
         context.fillRect(0, 0, canvas.width, canvas.height);
-        // Texto con tamaño reducido para paneles más pequeños
+        // Tamaño de fuente reducido para panel pequeño
         context.font = 'Bold 25px Arial';
         context.fillStyle = '#000000';
         context.textAlign = 'center';
@@ -132,7 +133,7 @@
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Tamaño reducido de los paneles (0.15 m x 0.15 m)
+        // Tamaño del panel reducido (0.15 m x 0.15 m)
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
 
@@ -147,36 +148,41 @@
       });
     }
 
-    // Bucle de animación: en cada frame se comprueba si el resultado correcto está en el centro de la vista
+    // Bucle de animación: en cada frame se comprueba si el móvil "colisiona" con alguno de los paneles
     function animate() {
       renderer.setAnimationLoop(render);
     }
 
     function render() {
       renderer.render(scene, camera);
-      
-      // Crear un raycaster desde el centro de la pantalla
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const intersects = raycaster.intersectObjects(answers);
-      
-      if (intersects.length > 0) {
-        // Se busca si alguno de los paneles intersectados es el correcto
-        const correctIntersect = intersects.find(i => i.object.userData.answer === correctAnswer);
-        if (correctIntersect && !hasPlayedSound) {
-          hasPlayedSound = true;
-          document.getElementById('successSound').play().catch(e => console.error(e));
-          alert("¡Correcto!");
+
+      // Obtener la posición actual de la cámara (móvil)
+      const camPos = new THREE.Vector3();
+      camera.getWorldPosition(camPos);
+
+      // Recorrer cada panel y comprobar la distancia al móvil
+      for (let panel of answers) {
+        const panelPos = new THREE.Vector3();
+        panel.getWorldPosition(panelPos);
+        const distance = camPos.distanceTo(panelPos);
+
+        if (distance < collisionThreshold && !hasCollided) {
+          hasCollided = true;
+          if (panel.userData.answer === correctAnswer) {
+            // Reproduce el sonido de acierto y muestra mensaje de éxito
+            document.getElementById('successSound').play().catch(e => console.error(e));
+            alert("¡Correcto!");
+          } else {
+            alert("Incorrecto. Inténtalo de nuevo.");
+          }
           // Tras unos segundos se regenera la pregunta y se reinicia la comprobación
           setTimeout(() => {
             generateQuestion();
             createAnswerObjects();
-            hasPlayedSound = false;
+            hasCollided = false;
           }, 2000);
+          break; // Solo se procesa una colisión a la vez
         }
-      } else {
-        // Si ningún panel está en el centro, se reinicia la bandera
-        hasPlayedSound = false;
       }
     }
   </script>
