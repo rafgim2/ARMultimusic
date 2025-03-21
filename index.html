@@ -1,38 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Tablas en AR</title>
+    <title>WebXR AR Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/webxr/ARButton.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
-      #info {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 1;
-        background: rgba(255,255,255,0.8);
-        padding: 10px;
-        font-family: sans-serif;
-      }
     </style>
   </head>
   <body>
-    <div id="info">¿Cuánto es 7 x 8? Acércate al número correcto</div>
-    <audio id="correctSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_dff3cf6760.mp3" preload="auto"></audio>
-
     <script>
       let camera, scene, renderer;
-      let correctNumber = "56";
-      let targets = [];
-      let acertado = false;
 
-      // Inicializa la escena AR
       init();
 
       function init() {
         scene = new THREE.Scene();
+
         camera = new THREE.PerspectiveCamera();
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -40,65 +25,26 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // ESTE botón lanza correctamente la sesión AR (¡clave!)
-        const arButton = ARButton.createButton(renderer, {
-          requiredFeatures: ['hit-test'], // puede ser también: optionalFeatures
+        // El botón que activa la experiencia AR
+        const button = ARButton.createButton(renderer, {
+          requiredFeatures: ['hit-test'], // Esta línea activa AR con cámara
         });
-        document.body.appendChild(arButton);
+        document.body.appendChild(button);
 
+        // Luz
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         scene.add(light);
 
-        // Añadimos los números en posiciones cercanas
-        createText("56", 0, 0, -1.5);
-        createText("63", -0.6, 0, -1.5);
-        createText("49", 0.6, 0, -1.5);
+        // Cubo de prueba
+        const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const material = new THREE.MeshNormalMaterial();
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(0, 0, -1); // justo frente a la cámara
+        scene.add(cube);
 
-        // Loop de render + detección de proximidad
         renderer.setAnimationLoop(() => {
-          detectProximity();
           renderer.render(scene, camera);
         });
-      }
-
-      function createText(text, x, y, z) {
-        const loader = new THREE.FontLoader();
-        loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
-          const geometry = new THREE.TextGeometry(text, {
-            font: font,
-            size: 0.3,
-            height: 0.05
-          });
-          const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-          const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(x, y, z);
-          mesh.name = text;
-          scene.add(mesh);
-          targets.push(mesh);
-        });
-      }
-
-      function detectProximity() {
-        if (acertado) return;
-
-        const cameraPos = new THREE.Vector3();
-        camera.getWorldPosition(cameraPos);
-
-        for (let t of targets) {
-          const targetPos = new THREE.Vector3();
-          t.getWorldPosition(targetPos);
-
-          const distance = cameraPos.distanceTo(targetPos);
-          if (distance < 0.4) {
-            if (t.name === correctNumber) {
-              document.getElementById("info").textContent = "¡Correcto!";
-              document.getElementById("correctSound").play();
-              acertado = true;
-            } else {
-              document.getElementById("info").textContent = "Incorrecto. Inténtalo de nuevo.";
-            }
-          }
-        }
       }
     </script>
   </body>
