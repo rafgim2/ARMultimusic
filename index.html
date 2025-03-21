@@ -2,38 +2,126 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Prueba Cámara</title>
+  <title>Tablas AR sin marcadores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/webxr/ARButton.js"></script>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: black;
-    }
-    video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
+    body { margin: 0; overflow: hidden; }
+    #pregunta {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.8);
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 20px;
+      z-index: 2;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
+  <div id="pregunta">Cargando pregunta...</div>
+  <audio id="acierto" src="https://cdn.pixabay.com/audio/2022/03/15/audio_dff3cf6760.mp3" preload="auto"></audio>
 
   <script>
-    const video = document.getElementById('video');
+    let camera, scene, renderer;
+    let respuestaCorrecta = null;
+    let acertado = false;
+    let respuestas = [];
 
-    // Solicita acceso a la cámara trasera
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }, // "user" para cámara frontal
-      audio: false
-    })
-    .then(stream => {
-      video.srcObject = stream;
-    })
-    .catch(error => {
-      alert('Error accediendo a la cámara: ' + error);
-      console.error(error);
-    });
+    init();
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      const button = ARButton.createButton(renderer, {
+        requiredFeatures: ['hit-test']
+      });
+      document.body.appendChild(button);
+
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
+
+      // Genera una multiplicación
+      generarPregunta();
+
+      renderer.setAnimationLoop(() => {
+        if (!acertado) detectarColision();
+        renderer.render(scene, camera);
+      });
+    }
+
+    function generarPregunta() {
+      // Borra anteriores
+      respuestas.forEach(obj => scene.remove(obj));
+      respuestas = [];
+      acertado = false;
+
+      const a = Math.floor(Math.random() * 9 + 2);
+      const b = Math.floor(Math.random() * 9 + 2);
+      const resultado = a * b;
+      document.getElementById("pregunta").textContent = `¿Cuánto es ${a} × ${b}?`;
+      respuestaCorrecta = resultado.toString();
+
+      // Genera 2 respuestas falsas únicas
+      let opciones = new Set([respuestaCorrecta]);
+      while (opciones.size < 3) {
+        let n = Math.floor(Math.random() * 81) + 10;
+        opciones.add(n.toString());
+      }
+
+      // Mezcla y crea texto en el espacio
+      const arrayOpciones = Array.from(opciones).sort(() => Math.random() - 0.5);
+      const posiciones = [[0, 0, -1.5], [-0.6, 0.2, -1.2], [0.6, -0.2, -1.4]];
+
+      const loader = new THREE.FontLoader();
+      loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+        arrayOpciones.forEach((valor, i) => {
+          const geometry = new THREE.TextGeometry(valor, {
+            font: font,
+            size: 0.3,
+            height: 0.05
+          });
+          const material = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(...posiciones[i]);
+          mesh.name = valor;
+          scene.add(mesh);
+          respuestas.push(mesh);
+        });
+      });
+    }
+
+    function detectarColision() {
+      const camPos = new THREE.Vector3();
+      camera.getWorldPosition(camPos);
+
+      for (let obj of respuestas) {
+        const objPos = new THREE.Vector3();
+        obj.getWorldPosition(objPos);
+        const distancia = camPos.distanceTo(objPos);
+
+        if (distancia < 0.4) {
+          if (obj.name === respuestaCorrecta) {
+            document.getElementById("pregunta").textContent = "¡Correcto!";
+            document.getElementById("acierto").play();
+            acertado = true;
+            setTimeout(generarPregunta, 2000);
+          } else {
+            document.getElementById("pregunta").textContent = "Incorrecto. Acércate a otra.";
+          }
+          break;
+        }
+      }
+    }
   </script>
 </body>
 </html>
