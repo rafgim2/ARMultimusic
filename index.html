@@ -24,6 +24,8 @@
 <body>
   <!-- Contenedor para mostrar la pregunta -->
   <div id="question"></div>
+  <!-- Elemento de audio para el sonido de acierto -->
+  <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
   
   <!-- Usamos módulos para cargar Three.js y ARButton -->
   <script type="module">
@@ -41,7 +43,7 @@
     generateQuestion();
     animate();
 
-    // Función para generar una pregunta de multiplicación aleatoria
+    // Genera una pregunta de multiplicación aleatoria y define la respuesta correcta
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -87,28 +89,27 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // Crea los objetos que muestran las respuestas (una correcta y tres aleatorias)
+    // Crea los objetos que muestran las respuestas (incluye la respuesta correcta y tres incorrectas)
     function createAnswerObjects() {
       // Eliminar respuestas previas
       answers.forEach(answer => scene.remove(answer));
       answers = [];
 
-      // Genera tres respuestas incorrectas
+      // Generar tres respuestas incorrectas (números entre 1 y 100 que no sean iguales a la respuesta correcta)
       const wrongAnswers = new Set();
       while (wrongAnswers.size < 3) {
         let wrong = Math.floor(Math.random() * 100) + 1;
         if (wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
       const answersArray = [correctAnswer, ...wrongAnswers];
-      // Baraja las respuestas
+      // Barajar las respuestas para que la posición del número correcto sea aleatoria
       answersArray.sort(() => Math.random() - 0.5);
 
-      // Configuramos que el grupo de respuestas se muestre a 0.5 m del usuario
-      // y se dispongan en un círculo pequeño con radio 0.1 m
-      const centerDistance = 0.5; // Distancia central en metros
-      const circleRadius = 0.1;   // Radio del círculo en metros
+      // Se muestran a 0.5 m del usuario en un círculo pequeño (radio 0.1 m)
+      const centerDistance = 0.5; // Distancia en metros desde la cámara
+      const circleRadius = 0.1;   // Radio del círculo
 
-      // Para cada respuesta, se crea una textura en un canvas con el número
+      // Para cada respuesta se crea un "botón" con una textura
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -125,7 +126,7 @@
         const geometry = new THREE.PlaneGeometry(0.5, 0.5);
         const mesh = new THREE.Mesh(geometry, material);
         const angle = index * (Math.PI * 2 / answersArray.length);
-        // Posiciona los objetos en un pequeño círculo centrado a 0.5 m frente al usuario
+        // Posición en un círculo pequeño frente al usuario
         mesh.position.set(
           Math.cos(angle) * circleRadius,
           0,
@@ -137,9 +138,9 @@
       });
     }
 
-    // Función que se ejecuta al tocar la pantalla
+    // Función que se ejecuta al tocar la pantalla (evento 'select')
     function onSelect() {
-      // Realiza un raycasting desde el controlador para detectar cuál objeto se tocó
+      // Realiza un raycasting desde el controlador para detectar qué objeto se tocó
       const raycaster = new THREE.Raycaster();
       const tempMatrix = new THREE.Matrix4();
       tempMatrix.identity().extractRotation(controller.matrixWorld);
@@ -149,6 +150,8 @@
       if (intersects.length > 0) {
         const selected = intersects[0].object.userData.answer;
         if (selected === correctAnswer) {
+          // Reproduce el sonido de acierto
+          document.getElementById('successSound').play();
           alert("¡Correcto!");
         } else {
           alert("Incorrecto. Inténtalo de nuevo.");
