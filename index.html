@@ -36,11 +36,9 @@
     let answers = [];
     const questionDiv = document.getElementById('question');
 
-    // Inicializa la escena, la cámara, el render y el controlador
+    // Inicializa la escena, genera la pregunta y arranca la animación
     init();
-    // Genera la pregunta de multiplicación
     generateQuestion();
-    // Inicia la animación
     animate();
 
     // Función para generar una pregunta de multiplicación aleatoria
@@ -105,6 +103,11 @@
       // Baraja las respuestas
       answersArray.sort(() => Math.random() - 0.5);
 
+      // Configuramos que el grupo de respuestas se muestre a 0.5 m del usuario
+      // y se dispongan en un círculo pequeño con radio 0.1 m
+      const centerDistance = 0.5; // Distancia central en metros
+      const circleRadius = 0.1;   // Radio del círculo en metros
+
       // Para cada respuesta, se crea una textura en un canvas con el número
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
@@ -121,9 +124,13 @@
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         const geometry = new THREE.PlaneGeometry(0.5, 0.5);
         const mesh = new THREE.Mesh(geometry, material);
-        // Distribuye los objetos en círculo frente al usuario
         const angle = index * (Math.PI * 2 / answersArray.length);
-        mesh.position.set(Math.cos(angle) * 1, 0, -Math.sin(angle) * 1.5 - 1);
+        // Posiciona los objetos en un pequeño círculo centrado a 0.5 m frente al usuario
+        mesh.position.set(
+          Math.cos(angle) * circleRadius,
+          0,
+          -centerDistance + Math.sin(angle) * circleRadius
+        );
         mesh.userData = { answer: num };
         answers.push(mesh);
         scene.add(mesh);
