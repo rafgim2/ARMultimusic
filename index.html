@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Tablas sin marcador - con colisión</title>
+    <title>Tablas en AR</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/webxr/ARButton.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      body { margin: 0; overflow: hidden; }
       #info {
         position: absolute;
         top: 10px;
@@ -14,7 +14,7 @@
         z-index: 1;
         background: rgba(255,255,255,0.8);
         padding: 10px;
-        font-size: 18px;
+        font-family: sans-serif;
       }
     </style>
   </head>
@@ -28,6 +28,7 @@
       let targets = [];
       let acertado = false;
 
+      // Inicializa la escena AR
       init();
 
       function init() {
@@ -39,15 +40,21 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+        // ESTE botón lanza correctamente la sesión AR (¡clave!)
+        const arButton = ARButton.createButton(renderer, {
+          requiredFeatures: ['hit-test'], // puede ser también: optionalFeatures
+        });
+        document.body.appendChild(arButton);
 
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         scene.add(light);
 
-        createText("56", 0, 0, -2);   // correcto
-        createText("63", -0.5, 0, -2); // incorrecto
-        createText("49", 0.5, 0, -2);  // incorrecto
+        // Añadimos los números en posiciones cercanas
+        createText("56", 0, 0, -1.5);
+        createText("63", -0.6, 0, -1.5);
+        createText("49", 0.6, 0, -1.5);
 
+        // Loop de render + detección de proximidad
         renderer.setAnimationLoop(() => {
           detectProximity();
           renderer.render(scene, camera);
@@ -74,18 +81,21 @@
       function detectProximity() {
         if (acertado) return;
 
-        const cameraPosition = new THREE.Vector3();
-        camera.getWorldPosition(cameraPosition);
+        const cameraPos = new THREE.Vector3();
+        camera.getWorldPosition(cameraPos);
 
-        for (let target of targets) {
-          const distance = cameraPosition.distanceTo(target.position);
-          if (distance < 0.4) { // sensibilidad de "toque"
-            if (target.name === correctNumber) {
+        for (let t of targets) {
+          const targetPos = new THREE.Vector3();
+          t.getWorldPosition(targetPos);
+
+          const distance = cameraPos.distanceTo(targetPos);
+          if (distance < 0.4) {
+            if (t.name === correctNumber) {
               document.getElementById("info").textContent = "¡Correcto!";
               document.getElementById("correctSound").play();
               acertado = true;
             } else {
-              document.getElementById("info").textContent = "Incorrecto, prueba otra vez";
+              document.getElementById("info").textContent = "Incorrecto. Inténtalo de nuevo.";
             }
           }
         }
