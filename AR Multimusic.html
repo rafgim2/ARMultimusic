@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Tablas sin marcador - con colisión</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/webxr/ARButton.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1;
+        background: rgba(255,255,255,0.8);
+        padding: 10px;
+        font-size: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">¿Cuánto es 7 x 8? Acércate al número correcto</div>
+    <audio id="correctSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_dff3cf6760.mp3" preload="auto"></audio>
+
+    <script>
+      let camera, scene, renderer;
+      let correctNumber = "56";
+      let targets = [];
+      let acertado = false;
+
+      init();
+
+      function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera();
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+        scene.add(light);
+
+        createText("56", 0, 0, -2);   // correcto
+        createText("63", -0.5, 0, -2); // incorrecto
+        createText("49", 0.5, 0, -2);  // incorrecto
+
+        renderer.setAnimationLoop(() => {
+          detectProximity();
+          renderer.render(scene, camera);
+        });
+      }
+
+      function createText(text, x, y, z) {
+        const loader = new THREE.FontLoader();
+        loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+          const geometry = new THREE.TextGeometry(text, {
+            font: font,
+            size: 0.3,
+            height: 0.05
+          });
+          const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(x, y, z);
+          mesh.name = text;
+          scene.add(mesh);
+          targets.push(mesh);
+        });
+      }
+
+      function detectProximity() {
+        if (acertado) return;
+
+        const cameraPosition = new THREE.Vector3();
+        camera.getWorldPosition(cameraPosition);
+
+        for (let target of targets) {
+          const distance = cameraPosition.distanceTo(target.position);
+          if (distance < 0.4) { // sensibilidad de "toque"
+            if (target.name === correctNumber) {
+              document.getElementById("info").textContent = "¡Correcto!";
+              document.getElementById("correctSound").play();
+              acertado = true;
+            } else {
+              document.getElementById("info").textContent = "Incorrecto, prueba otra vez";
+            }
+          }
+        }
+      }
+    </script>
+  </body>
+</html>
