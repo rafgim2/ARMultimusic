@@ -1,93 +1,164 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Multiplicación con cámara (sin AR)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <title>Multiplicación en AR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
-    body, html {
+    body {
       margin: 0;
-      padding: 0;
       overflow: hidden;
       font-family: sans-serif;
     }
-
-    video {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      z-index: -1;
-    }
-
-    #pregunta {
+    #question {
       position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.8);
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 24px;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
       z-index: 10;
-    }
-
-    .respuesta {
-      position: absolute;
-      background: rgba(255,255,255,0.9);
-      border: 2px solid #333;
-      border-radius: 20px;
-      padding: 15px 25px;
-      font-size: 20px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-
-    .respuesta:hover {
-      transform: scale(1.1);
     }
   </style>
 </head>
 <body>
+  <!-- Contenedor para mostrar la pregunta -->
+  <div id="question"></div>
+  
+  <!-- Usamos módulos para cargar Three.js y ARButton -->
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
+    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
 
-  <video id="video" autoplay playsinline></video>
-  <div id="pregunta">¿Cuánto es 7 × 8?</div>
+    let camera, scene, renderer;
+    let controller;
+    let correctAnswer;
+    let answers = [];
+    const questionDiv = document.getElementById('question');
 
-  <div class="respuesta" id="r1" style="top: 40%; left: 20%">56</div>
-  <div class="respuesta" id="r2" style="top: 60%; left: 50%">49</div>
-  <div class="respuesta" id="r3" style="top: 30%; left: 70%">64</div>
+    // Inicializa la escena, la cámara, el render y el controlador
+    init();
+    // Genera la pregunta de multiplicación
+    generateQuestion();
+    // Inicia la animación
+    animate();
 
-  <audio id="correctSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_dff3cf6760.mp3" preload="auto"></audio>
+    // Función para generar una pregunta de multiplicación aleatoria
+    function generateQuestion() {
+      const a = Math.floor(Math.random() * 10) + 1;
+      const b = Math.floor(Math.random() * 10) + 1;
+      correctAnswer = a * b;
+      questionDiv.innerHTML = `¿Cuánto es ${a} x ${b}?`;
+    }
 
-  <script>
-    const video = document.getElementById('video');
+    function init() {
+      // Crear escena y cámara
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-    // Activar la cámara trasera
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false
-    })
-    .then(stream => {
-      video.srcObject = stream;
-    })
-    .catch(error => {
-      alert('Error accediendo a la cámara: ' + error);
-    });
+      // Configurar el render con transparencia (para la cámara del dispositivo)
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+      
+      // Botón para activar la experiencia AR
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-    const correcta = "56";
-    document.getElementById('r1').onclick = comprobar;
-    document.getElementById('r2').onclick = comprobar;
-    document.getElementById('r3').onclick = comprobar;
+      // Luz ambiental para iluminar los objetos
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
 
-    function comprobar(e) {
-      const valor = e.target.textContent;
-      if (valor === correcta) {
-        document.getElementById('pregunta').textContent = "¡Correcto! 🎉";
-        document.getElementById('correctSound').play();
-      } else {
-        document.getElementById('pregunta').textContent = "❌ Incorrecto";
+      // Configurar el controlador para detectar toques (select)
+      controller = renderer.xr.getController(0);
+      controller.addEventListener('select', onSelect);
+      scene.add(controller);
+
+      // Crear los objetos de respuesta
+      createAnswerObjects();
+
+      window.addEventListener('resize', onWindowResize, false);
+    }
+
+    // Ajusta el render al cambiar el tamaño de la ventana
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Crea los objetos que muestran las respuestas (una correcta y tres aleatorias)
+    function createAnswerObjects() {
+      // Eliminar respuestas previas
+      answers.forEach(answer => scene.remove(answer));
+      answers = [];
+
+      // Genera tres respuestas incorrectas
+      const wrongAnswers = new Set();
+      while (wrongAnswers.size < 3) {
+        let wrong = Math.floor(Math.random() * 100) + 1;
+        if (wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
+      const answersArray = [correctAnswer, ...wrongAnswers];
+      // Baraja las respuestas
+      answersArray.sort(() => Math.random() - 0.5);
+
+      // Para cada respuesta, se crea una textura en un canvas con el número
+      answersArray.forEach((num, index) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.font = 'Bold 80px Arial';
+        context.fillStyle = '#000000';
+        context.textAlign = 'center';
+        context.fillText(num, canvas.width / 2, canvas.height / 2 + 30);
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const geometry = new THREE.PlaneGeometry(0.5, 0.5);
+        const mesh = new THREE.Mesh(geometry, material);
+        // Distribuye los objetos en círculo frente al usuario
+        const angle = index * (Math.PI * 2 / answersArray.length);
+        mesh.position.set(Math.cos(angle) * 1, 0, -Math.sin(angle) * 1.5 - 1);
+        mesh.userData = { answer: num };
+        answers.push(mesh);
+        scene.add(mesh);
+      });
+    }
+
+    // Función que se ejecuta al tocar la pantalla
+    function onSelect() {
+      // Realiza un raycasting desde el controlador para detectar cuál objeto se tocó
+      const raycaster = new THREE.Raycaster();
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const intersects = raycaster.intersectObjects(answers);
+      if (intersects.length > 0) {
+        const selected = intersects[0].object.userData.answer;
+        if (selected === correctAnswer) {
+          alert("¡Correcto!");
+        } else {
+          alert("Incorrecto. Inténtalo de nuevo.");
+        }
+        // Regenera la pregunta y las respuestas
+        generateQuestion();
+        createAnswerObjects();
+      }
+    }
+
+    // Bucle de animación
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+
+    function render() {
+      renderer.render(scene, camera);
     }
   </script>
 </body>
