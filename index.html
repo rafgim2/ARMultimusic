@@ -25,7 +25,7 @@
   <!-- Contenedor para mostrar la pregunta -->
   <div id="question"></div>
   <!-- Elemento de audio para el sonido de acierto -->
-  <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
   <!-- Usamos módulos para cargar Three.js y ARButton -->
   <script type="module">
@@ -45,6 +45,17 @@
     // ...y luego creamos los botones con las respuestas
     createAnswerObjects();
     animate();
+
+    // Desbloquea el audio en dispositivos móviles tras el primer toque
+    window.addEventListener('touchstart', function unlockAudio() {
+      const audioEl = document.getElementById('successSound');
+      audioEl.play().then(() => {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+      }).catch((e) => {
+        console.error('Error unlocking audio:', e);
+      });
+    }, { once: true });
 
     // Genera una pregunta de multiplicación aleatoria y define la respuesta correcta
     function generateQuestion() {
@@ -105,12 +116,12 @@
       // Barajar las respuestas para que la posición del número correcto sea aleatoria
       answersArray.sort(() => Math.random() - 0.5);
 
-      // Configuramos que el grupo de respuestas se muestre a 0.5 m del usuario
-      // y se dispongan en un círculo pequeño. Se aumenta el radio a 0.2 m para mejor distribución.
-      const centerDistance = 0.5; // Distancia en metros desde la cámara
-      const circleRadius = 0.2;   // Radio del círculo
-
+      // Distribuir las respuestas en un arco horizontal a 0.5 m de la cámara
+      const radius = 0.5; // Distancia fija de 0.5 m
       const total = answersArray.length;
+      const angleStart = -Math.PI / 4; // -45°
+      const angleEnd = Math.PI / 4;    // 45°
+
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -126,13 +137,13 @@
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         const geometry = new THREE.PlaneGeometry(0.5, 0.5);
         const mesh = new THREE.Mesh(geometry, material);
-        const angle = index * (2 * Math.PI / total);
-        // Posición en un círculo pequeño frente al usuario
-        mesh.position.set(
-          Math.cos(angle) * circleRadius,
-          0,
-          -centerDistance + Math.sin(angle) * circleRadius
-        );
+
+        // Calcular el ángulo para posicionar cada respuesta en el arco
+        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
+        // Posicionar las respuestas en el arco (todas a 0.5 m de la cámara)
+        const x = radius * Math.sin(angle);
+        const z = - radius * Math.cos(angle);
+        mesh.position.set(x, 0, z);
         mesh.userData = { answer: num };
         answers.push(mesh);
         scene.add(mesh);
@@ -152,7 +163,7 @@
         const selected = intersects[0].object.userData.answer;
         if (selected === correctAnswer) {
           // Reproduce el sonido de acierto
-          document.getElementById('successSound').play();
+          document.getElementById('successSound').play().catch((e) => console.error(e));
           alert("¡Correcto!");
         } else {
           alert("Incorrecto. Inténtalo de nuevo.");
