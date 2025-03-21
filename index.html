@@ -38,9 +38,12 @@
     let answers = [];
     const questionDiv = document.getElementById('question');
 
-    // Inicializa la escena, genera la pregunta y arranca la animación
+    // Inicializa la escena y arranca la animación
     init();
+    // Primero generamos la pregunta para definir la respuesta correcta...
     generateQuestion();
+    // ...y luego creamos los botones con las respuestas
+    createAnswerObjects();
     animate();
 
     // Genera una pregunta de multiplicación aleatoria y define la respuesta correcta
@@ -76,9 +79,6 @@
       controller.addEventListener('select', onSelect);
       scene.add(controller);
 
-      // Crear los objetos de respuesta
-      createAnswerObjects();
-
       window.addEventListener('resize', onWindowResize, false);
     }
 
@@ -105,11 +105,12 @@
       // Barajar las respuestas para que la posición del número correcto sea aleatoria
       answersArray.sort(() => Math.random() - 0.5);
 
-      // Se muestran a 0.5 m del usuario en un círculo pequeño (radio 0.1 m)
+      // Configuramos que el grupo de respuestas se muestre a 0.5 m del usuario
+      // y se dispongan en un círculo pequeño. Se aumenta el radio a 0.2 m para mejor distribución.
       const centerDistance = 0.5; // Distancia en metros desde la cámara
-      const circleRadius = 0.1;   // Radio del círculo
+      const circleRadius = 0.2;   // Radio del círculo
 
-      // Para cada respuesta se crea un "botón" con una textura
+      const total = answersArray.length;
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -125,7 +126,7 @@
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         const geometry = new THREE.PlaneGeometry(0.5, 0.5);
         const mesh = new THREE.Mesh(geometry, material);
-        const angle = index * (Math.PI * 2 / answersArray.length);
+        const angle = index * (2 * Math.PI / total);
         // Posición en un círculo pequeño frente al usuario
         mesh.position.set(
           Math.cos(angle) * circleRadius,
