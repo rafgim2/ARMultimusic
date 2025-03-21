@@ -109,8 +109,8 @@
       // Baraja las respuestas para ubicar aleatoriamente la correcta
       answersArray.sort(() => Math.random() - 0.5);
 
-      // Distribuir las respuestas en un arco horizontal (de -45° a 45°) a 0.5 m de la cámara
-      const radius = 0.5;
+      // Distribuir las respuestas en un arco horizontal (de -45° a 45°) a 0.8 m de la cámara (más separadas)
+      const radius = 0.8;
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -123,7 +123,8 @@
         const context = canvas.getContext('2d');
         context.fillStyle = '#FFFFFF';
         context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'Bold 50px Arial';
+        // Texto con tamaño reducido para paneles más pequeños
+        context.font = 'Bold 25px Arial';
         context.fillStyle = '#000000';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
@@ -131,8 +132,8 @@
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Tamaño reducido de los paneles (0.3 m x 0.3 m)
-        const geometry = new THREE.PlaneGeometry(0.3, 0.3);
+        // Tamaño reducido de los paneles (0.15 m x 0.15 m)
+        const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
 
         // Calcular el ángulo para ubicar cada panel en el arco
