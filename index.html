@@ -36,7 +36,7 @@
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
-  <!-- Audio para pitido corto (beep) -->
+  <!-- Audio para pitido corto en los últimos 10 segundos -->
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
@@ -79,7 +79,7 @@
     // Variable global para almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar pitidos en los últimos 10 segundos
+    // Variable para controlar el beep de los últimos 10 segundos
     let lastBeepSecond = -1;
     
     // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
@@ -164,7 +164,7 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Configurar el sonido del timer para que haga loop
+        // Configurar el timer para loop y reproducirlo
         const timerSound = document.getElementById('timerSound');
         timerSound.loop = true;
         timerSound.play().catch(e => console.error(e));
@@ -211,7 +211,7 @@
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
       const seconds = Math.floor(remaining);
-      // En los últimos 10 segundos, se usa color rojo
+      // En los últimos 10 segundos, el color es rojo; de lo contrario blanco
       let timeColor = (remaining <= 10) ? "red" : "#FFFFFF";
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
       countdownCtx.fillStyle = timeColor;
@@ -225,10 +225,11 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Si estamos en los últimos 10 segundos, reproducir un pitido cada segundo
+      // Si estamos en los últimos 10 segundos, reproducir el beep una vez por cada segundo
       if (remaining <= 10 && seconds !== lastBeepSecond) {
         lastBeepSecond = seconds;
         const beepSound = document.getElementById('beepSound');
+        beepSound.currentTime = 0;
         beepSound.play().catch(e => console.error(e));
       }
       
@@ -251,7 +252,7 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
-      // Forzamos la recreación de la malla de la pregunta
+      // Forzar recreación de la malla de la pregunta
       if(questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
@@ -561,6 +562,11 @@
     
     function endGame() {
       gameOver = true;
+      // Detener el timer para que no siga sonando
+      const timerSound = document.getElementById('timerSound');
+      timerSound.pause();
+      timerSound.currentTime = 0;
+      
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
       if (scoreMesh) scene.remove(scoreMesh);
@@ -584,9 +590,11 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
+      // Cuadro de resultados en posición original: (0,0,-0.8)
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
+      // Los botones finales se colocan encima del cuadro de resultados, es decir, a la misma distancia (z = -0.8) y con y mayor (por ejemplo, 0.4)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -606,18 +614,22 @@
       }
       
       exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, -0.4, -0.5);
+      exitButtonMesh.position.set(-0.5, 0.4, -0.8);
       scene.add(exitButtonMesh);
       
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, -0.4, -0.5);
+      restartButtonMesh.position.set(0.5, 0.4, -0.8);
       scene.add(restartButtonMesh);
     }
     
+    // Salir recargando la página (volver al menú inicial)
     function exitGame() {
       location.reload();
     }
     
+    // Reiniciar el juego sin recargar la página:
+    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
+    // Se reusan las transformaciones originales de las respuestas para no reorientarlas.
     function restartGame() {
       if(finalMessageMesh) scene.remove(finalMessageMesh);
       if(exitButtonMesh) scene.remove(exitButtonMesh);
@@ -643,6 +655,8 @@
       createScoreDisplay();
       
       const timerSound = document.getElementById('timerSound');
+      timerSound.currentTime = 0;
+      timerSound.loop = true;
       timerSound.play().catch(e => console.error(e));
     }
     
