@@ -21,8 +21,9 @@
       text-align: center;
       z-index: 10;
     }
-    #overlay h1 {
-      font-size: 48px;
+    /* La imagen que reemplaza al título se ajusta con un ancho máximo y un margen inferior */
+    #overlay img {
+      max-width: 80%;
       margin-bottom: 10px;
     }
     #overlay a {
@@ -47,7 +48,7 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error, timer y beep -->
+  <!-- Audios: acierto, error, timer, beep -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer2.wav" preload="auto"></audio>
@@ -91,7 +92,7 @@
     // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
+    // Variable para controlar la reproducción del beep (se reproducirá solo una vez cuando falten 10 segundos)
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -147,11 +148,11 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crear overlay inicial
+      // Creación del overlay inicial con imagen en lugar del título
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
-        '<h1>AR MULTIMUSIC</h1>' +
+        '<img src="armult.png" alt="AR MULTIMUSIC">' +
         '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
         '<div class="respuestas-container">' +
           '<label for="numAnswers">Respuestas:</label>' +
@@ -165,9 +166,9 @@
             '<option value="10">10</option>' +
           '</select>' +
         '</div>';
-      // Crear el botón AR y modificar sus estilos para fondo verde y texto blanco.
+      // Crear el botón AR y modificar sus estilos
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
-      // Eliminar el botón de su contenedor original (si ya fue añadido a body)
+      // Eliminar el botón de su contenedor original si ya se agregó
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
       }
@@ -175,7 +176,7 @@
       arButton.style.color = 'white';
       arButton.style.fontSize = '16px';
       arButton.style.marginTop = '10px';
-      // Insertar el botón justo debajo del contenedor de respuestas:
+      // Insertar el botón justo debajo del contenedor de respuestas
       overlay.appendChild(arButton);
       
       document.body.appendChild(overlay);
@@ -243,7 +244,6 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir el beep solo UNA vez cuando falten 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
