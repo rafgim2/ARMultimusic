@@ -42,7 +42,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Se crean una única vez los paneles de respuesta
+    let answers = []; // Los paneles de respuesta se crean una sola vez
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -66,6 +66,7 @@
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
+    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -143,7 +144,7 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles una única vez con posiciones fijas
+        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (distribución fija)
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -168,12 +169,12 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posicionar la cuenta atrás justo encima de la pregunta (la pregunta está en (0, 0.3, -0.8))
+      // Posicionar la cuenta atrás justo encima de la pregunta (pregunta en (0, 0.3, -0.8))
       countdownMesh.position.set(0, 0.6, -0.8);
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score (aciertos y fallos) en AR, a la derecha de la cuenta atrás
+    // Crea la malla de score (aciertos y fallos) en AR, posicionándola **encima** de la cuenta atrás
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -183,8 +184,8 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      // Posicionar el score a la derecha de la cuenta atrás (por ejemplo, en (0.8, 0.6, -0.8))
-      scoreMesh.position.set(0.8, 0.6, -0.8);
+      // Posicionar el score encima de la cuenta atrás (por ejemplo, en (0, 0.9, -0.8))
+      scoreMesh.position.set(0, 0.9, -0.8);
       scene.add(scoreMesh);
     }
     
@@ -204,11 +205,11 @@
       return remaining;
     }
     
-    // Actualiza la malla de score con los contadores de aciertos y fallos (texto más pequeño)
+    // Actualiza la malla de score con los contadores de aciertos y fallos (texto con la mitad de tamaño)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
-      scoreCtx.font = "Bold 24px Arial"; // La mitad del tamaño anterior
+      scoreCtx.font = "Bold 24px Arial"; // Mitad de tamaño
       scoreCtx.textAlign = "center";
       scoreCtx.textBaseline = "middle";
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
@@ -325,6 +326,7 @@
       }
     }
     
+    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -455,11 +457,15 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Crear malla de "Fin del Juego" en AR
+      // Crear malla de "Fin del Juego" en AR en un recuadro azul similar a las respuestas
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
       const gameOverCtx = gameOverCanvas.getContext('2d');
+      // Dibujar recuadro azul con bordes redondeados
+      gameOverCtx.fillStyle = "#007BFF";
+      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 20);
+      // Escribir el resultado en blanco
       gameOverCtx.fillStyle = "#FFFFFF";
       gameOverCtx.font = "Bold 48px Arial";
       gameOverCtx.textAlign = "center";
@@ -472,11 +478,12 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       const gameOverMesh = new THREE.Mesh(geometry, material);
-      // Posicionar el resultado en AR (por ejemplo, en el centro a 1m frente al usuario)
+      // Posicionar el recuadro final en AR (por ejemplo, en el centro a 1 metro frente al usuario)
       gameOverMesh.position.set(0, 0, -1);
       scene.add(gameOverMesh);
     }
     
+    // Desbloqueo de audio en móviles
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
