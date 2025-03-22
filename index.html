@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Bloques 3D Grandes</title>
+  <title>Multiplicación en AR con Bloques 3D</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -20,19 +20,36 @@
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false;
+    let hasCollided = false; // para evitar múltiples colisiones simultáneas
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // en metros
+    const collisionThreshold = 0.2; // distancia (en metros) para considerar "colisión"
     
-    // Array para sistemas de partículas
+    // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
+    
+    // Función auxiliar para dibujar un rectángulo redondeado en el canvas (ahora solo se usa para crear el fondo)
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
     
     init();
     generateQuestion();
     createAnswerObjects();
     animate();
     
+    // Desbloquea el audio en móviles con el primer toque
     window.addEventListener('touchstart', function unlockAudio() {
       const audioEl = document.getElementById('successSound');
       audioEl.play().then(() => {
@@ -51,7 +68,9 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
+      // Detectar si es móvil usando el user agent
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      // En móviles se solicita solo 'hit-test'; en otros se añade 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
@@ -59,6 +78,7 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
+      // Crea o actualiza el panel de la pregunta en AR (ahora con bloque 3D)
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -70,7 +90,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria
+    // Genera una pregunta aleatoria y actualiza el panel en AR
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -79,7 +99,7 @@
       updateQuestionPanel();
     }
     
-    // Actualiza o crea el panel de la pregunta con RoundedBoxGeometry mayor
+    // Crea o actualiza el panel de la pregunta usando un canvas, y se aplica al bloque 3D
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -88,10 +108,10 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Fondo azul con bordes redondeados
-      ctx.fillStyle = "#007BFF";
+      ctx.fillStyle = "#007BFF"; // azul
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
       
-      // Texto en blanco
+      // Dibuja el texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -100,41 +120,23 @@
       
       const texture = new THREE.CanvasTexture(canvas);
       
-      // Geometría 3D para la pregunta (más grande)
-      const geometry = new RoundedBoxGeometry(0.8, 0.3, 0.1, 0.05, 2);
-      const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-      const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
-      const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
-      
       if (questionMesh) {
-        questionMesh.material[4] = frontMat;
+        questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        questionMesh = new THREE.Mesh(geometry, materials);
-        // Posición ajustada: más lejos y elevado para que se vea bien en AR
-        questionMesh.position.set(0, 0.5, -1.5);
+        // Crea un bloque 3D para la pregunta: 0.6 x 0.15 x 0.05 m
+        const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 5, 0.02);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        questionMesh = new THREE.Mesh(geometry, material);
+        // Posiciónalo en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
+        questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Función auxiliar para dibujar un rectángulo redondeado en un canvas
-    function drawRoundedRect(ctx, x, y, width, height, radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-      ctx.fill();
-    }
-    
-    // Crea los paneles de respuesta como bloques 3D grandes
+    // Crea los bloques de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
+      // Elimina bloques previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -146,7 +148,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 1.0; // mayor separación
+      const radius = 0.8; // separación mayor
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -158,11 +160,11 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Fondo azul y bordes redondeados
+        // Fondo azul con bordes redondeados
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
         
-        // Texto en tamaño 75px en blanco
+        // Dibuja el número en tamaño 75px, en blanco
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -170,13 +172,10 @@
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
-        // Geometría para cada respuesta
-        const geometry = new RoundedBoxGeometry(0.25, 0.25, 0.1, 0.05, 2);
-        const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
-        const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
-        
-        const mesh = new THREE.Mesh(geometry, materials);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        // Crea un bloque 3D para la respuesta: 0.15 x 0.15 x 0.05 m
+        const geometry = new RoundedBoxGeometry(0.15, 0.15, 0.05, 5, 0.02);
+        const mesh = new THREE.Mesh(geometry, material);
         
         let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
         const x = radius * Math.sin(angle);
@@ -188,7 +187,7 @@
       });
     }
     
-    // Crea efecto de chispas (igual que antes)
+    // Crea un efecto de chispas en la posición indicada
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -216,7 +215,7 @@
       });
     }
     
-    // Bucle de animación: usa hand tracking (para ambas manos) o la cámara en móviles
+    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara en móviles
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -224,6 +223,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
+      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -242,6 +242,7 @@
         }
       }
       
+      // Recopila los puntos de interacción: usa datos de ambas manos (si están disponibles) o la cámara en móviles
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -267,6 +268,7 @@
         interactionPoints.push(cameraPos);
       }
       
+      // Comprueba la "colisión" entre cada bloque de respuesta y cada punto de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -284,7 +286,7 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return;
+            return; // Se procesa solo una colisión a la vez
           }
         }
       }
