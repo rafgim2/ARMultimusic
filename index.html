@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Bloques 3D</title>
+  <title>Multiplicación en AR con Bloques 3D (Fallback Geometría)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -20,12 +20,11 @@
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false; // para evitar múltiples colisiones simultáneas
+    let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // distancia (en metros) para considerar "colisión"
+    const collisionThreshold = 0.2;
     
-    // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
     
     init();
@@ -52,9 +51,8 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Detectar si es móvil usando el user agent
+      // Detecta si es móvil; en móviles solo 'hit-test'
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // En móviles, se solicita solo 'hit-test'; en otros, se solicita también 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
@@ -62,7 +60,6 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Crea o actualiza el panel de la pregunta en AR
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -74,7 +71,6 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria y actualiza el panel en AR
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -83,19 +79,16 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta usando un canvas
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 128;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
       // Fondo azul
       ctx.fillStyle = "#007BFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Dibujo del texto en blanco
+      // Texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -104,34 +97,26 @@
       
       const texture = new THREE.CanvasTexture(canvas);
       
-      // Usamos RoundedBoxGeometry para crear un bloque con profundidad y bordes redondeados
-      const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 5, 0.02);
-      // Creamos un arreglo de materiales: la cara frontal mostrará el canvas; las demás, un color azul
-      // El orden de las caras es: [Right, Left, Top, Bottom, Front, Back]
+      // Usa RoundedBoxGeometry si está disponible, sino BoxGeometry
+      const geom = (typeof RoundedBoxGeometry !== 'undefined')
+        ? new RoundedBoxGeometry(0.6, 0.15, 0.05, 5, 0.02)
+        : new THREE.BoxGeometry(0.6, 0.15, 0.05);
+      
+      // Materiales: la cara frontal con el canvas y el resto azul
       const frontMaterial = new THREE.MeshBasicMaterial({ map: texture });
       const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x007BFF });
-      const materials = [
-        sideMaterial,
-        sideMaterial,
-        sideMaterial,
-        sideMaterial,
-        frontMaterial,
-        sideMaterial
-      ];
+      const materials = [ sideMaterial, sideMaterial, sideMaterial, sideMaterial, frontMaterial, sideMaterial ];
       
       if (questionMesh) {
-        // Si ya existe, actualizamos el material de la cara frontal
         questionMesh.material[4] = frontMaterial;
         questionMesh.material.needsUpdate = true;
       } else {
-        questionMesh = new THREE.Mesh(geometry, materials);
-        // Posicionar el bloque de la pregunta: 0.3 m de altura y 0.8 m frente al usuario
+        questionMesh = new THREE.Mesh(geom, materials);
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los bloques de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
       answers.forEach(panel => scene.remove(panel));
       answers = [];
@@ -144,7 +129,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // separación mayor
+      const radius = 0.8;
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -155,12 +140,10 @@
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         // Fondo azul
         ctx.fillStyle = "#007BFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Texto en blanco, tamaño 75px
+        // Texto en blanco tamaño 75px
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -168,20 +151,13 @@
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
-        // Usamos RoundedBoxGeometry para crear un bloque con profundidad (0.15 x 0.15 x 0.05 m)
-        const geometry = new RoundedBoxGeometry(0.15, 0.15, 0.05, 5, 0.02);
-        // Arreglo de materiales para el bloque: la cara frontal con el canvas y el resto en azul.
+        const geom = (typeof RoundedBoxGeometry !== 'undefined')
+          ? new RoundedBoxGeometry(0.15, 0.15, 0.05, 5, 0.02)
+          : new THREE.BoxGeometry(0.15, 0.15, 0.05);
         const frontMaterial = new THREE.MeshBasicMaterial({ map: texture });
         const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x007BFF });
-        const materials = [
-          sideMaterial,
-          sideMaterial,
-          sideMaterial,
-          sideMaterial,
-          frontMaterial,
-          sideMaterial
-        ];
-        const mesh = new THREE.Mesh(geometry, materials);
+        const materials = [ sideMaterial, sideMaterial, sideMaterial, sideMaterial, frontMaterial, sideMaterial ];
+        const mesh = new THREE.Mesh(geom, materials);
         
         let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
         const x = radius * Math.sin(angle);
@@ -193,7 +169,6 @@
       });
     }
     
-    // Crea un efecto de chispas en la posición indicada
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -221,7 +196,6 @@
       });
     }
     
-    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara en móviles
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -229,7 +203,6 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -248,7 +221,7 @@
         }
       }
       
-      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles; si no, se usa la cámara
+      // Recolecta puntos de interacción: usa hand tracking de ambas manos o, si no, la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -274,7 +247,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Comprueba la "colisión" entre cada bloque de respuesta y cada punto de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -292,7 +264,7 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return; // Se procesa solo una colisión a la vez
+            return;
           }
         }
       }
