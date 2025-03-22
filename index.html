@@ -32,10 +32,10 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error y timer (fondo) -->
+  <!-- Audios: acierto, error y timer (sin loop para timer) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto" loop></audio>
+  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -43,7 +43,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Los paneles de respuesta se crean una sola vez
+    let answers = []; // Se crean los paneles de respuesta una sola vez
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -145,12 +145,12 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (distribución fija)
+        createAnswerObjects(selectedNumAnswers, true); // Crear paneles una única vez con posiciones fijas
         overlay.remove();
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Reproducir sonido de fondo "timer"
+        // Reproducir el sonido de fondo "timer" (se reproducirá solo una vez)
         const timerSound = document.getElementById('timerSound');
         timerSound.play().catch(e => console.error(e));
       });
@@ -162,7 +162,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Crea la malla para la cuenta atrás y la posiciona en (0, 0.5, -0.8)
+    // Crea la malla para la cuenta atrás y la posiciona en (0, 0.6, -0.8)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -173,11 +173,11 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      countdownMesh.position.set(0, 0.5, -0.8);
+      countdownMesh.position.set(0, 0.6, -0.8);
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score en AR y la posiciona en (0, 0.6, -0.8)
+    // Crea la malla de score en AR y la posiciona en (0, 0.7, -0.8)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -187,7 +187,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      scoreMesh.position.set(0, 0.6, -0.8);
+      scoreMesh.position.set(0, 0.7, -0.8);
       scene.add(scoreMesh);
     }
     
@@ -207,7 +207,7 @@
       return remaining;
     }
     
-    // Actualiza el score en AR con el texto de aciertos y fallos (24px)
+    // Actualiza el score en AR con los contadores (texto a 24px)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
@@ -256,7 +256,7 @@
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; de lo contrario, solo se actualizan los valores.
+    // Crea o actualiza los paneles de respuesta
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -328,7 +328,7 @@
       }
     }
     
-    // Actualiza los paneles de respuesta con nuevos valores (sin cambiar posición)
+    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
