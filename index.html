@@ -30,13 +30,13 @@
   </style>
 </head>
 <body>
-  <!-- Menú inicial con título y botón -->
+  <!-- Menú inicial -->
   <div id="menu">
     <h1>AR MULTIMUSIC</h1>
     <button id="startButton">Empezar</button>
   </div>
   
-  <!-- Audio para el efecto de acierto -->
+  <!-- Audio para efecto de acierto -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
   <script type="module">
@@ -48,12 +48,10 @@
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // Distancia para considerar una colisión
-    
-    // Array para almacenar los sistemas de partículas (chispas)
+    const collisionThreshold = 0.2;
     const sparksSystems = [];
     
-    // Función auxiliar para dibujar un rectángulo redondeado en un canvas
+    // Dibuja un rectángulo redondeado en un canvas (para los paneles)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -69,41 +67,7 @@
       ctx.fill();
     }
     
-    // Función que inicia la experiencia AR directamente
-    function startGame() {
-      // Oculta el menú
-      document.getElementById('menu').style.display = 'none';
-      
-      // Inicializa la escena, cámara y renderer
-      init();
-      
-      // Detecta si es móvil para determinar las características requeridas
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
-      
-      // Solicita la sesión AR directamente usando el gesto del usuario (clic en "Empezar")
-      navigator.xr.requestSession('immersive-ar', { requiredFeatures })
-      .then(session => {
-          renderer.xr.setSession(session);
-          // Una vez iniciada la sesión AR, se generan la pregunta, las respuestas y se arranca la animación
-          generateQuestion();
-          createAnswerObjects();
-          animate();
-      })
-      .catch(err => {
-          console.error("Error iniciando la sesión AR:", err);
-      });
-    }
-    
-    // Desbloquea el audio en móviles con el primer toque
-    window.addEventListener('touchstart', function unlockAudio() {
-      const audioEl = document.getElementById('successSound');
-      audioEl.play().then(() => {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-      }).catch(e => console.error(e));
-    }, { once: true });
-    
+    // Inicializa la escena, cámara y renderer
     function init() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -118,7 +82,7 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Prepara el panel de la pregunta (se actualizará luego)
+      // Prepara el panel de la pregunta (inicialmente vacío)
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -130,7 +94,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria y actualiza el panel en AR
+    // Genera una pregunta aleatoria
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -149,12 +113,9 @@
       
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 10;
-      
       ctx.fillStyle = "#007BFF";
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
-      
       ctx.shadowBlur = 0;
-      
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -167,18 +128,17 @@
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Panel de la pregunta: 0.6 x 0.15 m, posicionado en AR
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
+        // Posiciona el panel en AR
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los paneles de respuesta (uno correcto y tres incorrectos)
+    // Crea los paneles de respuestas (uno correcto y tres incorrectos)
     function createAnswerObjects() {
-      // Elimina paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -204,12 +164,9 @@
         
         ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
         ctx.shadowBlur = 10;
-        
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
-        
         ctx.shadowBlur = 0;
-        
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -231,7 +188,7 @@
       });
     }
     
-    // Crea un efecto de chispas en la posición indicada
+    // Efecto de chispas al acertar
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -285,6 +242,7 @@
         }
       }
       
+      // Se obtienen los puntos de interacción (hand tracking o la posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -310,6 +268,7 @@
         interactionPoints.push(cameraPos);
       }
       
+      // Verifica la colisión entre cada panel de respuesta y los puntos de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -333,7 +292,38 @@
       }
     }
     
-    document.getElementById('startButton').addEventListener('click', startGame);
+    // Al hacer clic en "Empezar", se oculta el menú, se inicializa la escena y se solicita la sesión AR
+    document.getElementById('startButton').addEventListener('click', () => {
+      document.getElementById('menu').style.display = 'none';
+      init();
+      // Para móviles se usa "hit-test"
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
+      
+      if (navigator.xr) {
+        navigator.xr.requestSession('immersive-ar', { requiredFeatures })
+        .then(session => {
+          renderer.xr.setSession(session);
+          generateQuestion();
+          createAnswerObjects();
+          animate();
+        })
+        .catch(err => {
+          console.error("Error iniciando la sesión AR:", err);
+        });
+      } else {
+        console.error("WebXR no está disponible en este dispositivo.");
+      }
+    });
+    
+    // Desbloquea el audio en móviles con el primer toque
+    window.addEventListener('touchstart', function unlockAudio() {
+      const audioEl = document.getElementById('successSound');
+      audioEl.play().then(() => {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+      }).catch(e => console.error(e));
+    }, { once: true });
     
   </script>
 </body>
