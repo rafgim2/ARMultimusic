@@ -34,23 +34,22 @@
   <!-- Audio para efectos -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
-  <!-- Overlay inicial -->
+  <!-- Overlay inicial con un solo botón -->
   <div id="overlay">
     <h1>AR MULTIMUSIC</h1>
-    <button id="startAR">Iniciar sesión AR</button>
+    <button id="startAR">Start AR</button>
   </div>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
     
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false; // Para evitar múltiples colisiones simultáneas
+    let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // Distancia en metros para considerar "colisión"
+    const collisionThreshold = 0.2;
     
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
@@ -82,11 +81,7 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Detectar si es móvil usando el user agent
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // Si es móvil, solo se requiere 'hit-test'; en otros, se solicita también 'hand-tracking'
-      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
+      // No se añade ARButton.createButton para evitar el botón extra
       
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
@@ -290,7 +285,7 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Detección de colisión entre cada panel de respuesta y cada punto de interacción
+      // Detección de colisión entre paneles de respuesta y puntos de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -308,7 +303,7 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return; // Procesa solo una colisión a la vez
+            return;
           }
         }
       }
@@ -323,17 +318,26 @@
       }).catch(e => console.error(e));
     }, { once: true });
     
-    // Inicialización de la escena
     init();
     animate();
     
-    // Lógica para iniciar la experiencia AR
-    document.getElementById('startAR').addEventListener('click', () => {
-      // Se remueve el overlay
+    // Evento del único botón: inicia la sesión AR y genera preguntas/respuestas
+    document.getElementById('startAR').addEventListener('click', async () => {
+      if (navigator.xr) {
+        try {
+          const session = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] });
+          renderer.xr.setSession(session);
+        } catch (e) {
+          console.error('Error al iniciar la sesión AR:', e);
+          return;
+        }
+      } else {
+        console.error('WebXR no está disponible');
+        return;
+      }
+      // Se elimina el overlay y se generan las preguntas y respuestas
       const overlay = document.getElementById('overlay');
       overlay.parentNode.removeChild(overlay);
-      
-      // Ahora se generan las preguntas y respuestas
       generateQuestion();
       createAnswerObjects();
     });
