@@ -17,7 +17,7 @@
       justify-content: center;
       align-items: center;
       color: #fff;
-      text-align: center; /* Centra el contenido horizontalmente */
+      text-align: center;
       z-index: 10;
     }
     #overlay h1 {
@@ -41,9 +41,10 @@
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2;
+    const collisionThreshold = 0.2; // Distancia para detectar "colisión"
     const sparksSystems = [];
     
+    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -139,6 +140,7 @@
       }
     }
     
+    // Se modificó esta función para que cada respuesta se oriente hacia la cámara
     function createAnswerObjects() {
       answers.forEach(panel => scene.remove(panel));
       answers = [];
@@ -186,6 +188,13 @@
         const x = radius * Math.sin(angle);
         const z = -radius * Math.cos(angle);
         mesh.position.set(x, 0, z);
+        
+        // Calcula la posición de la cámara y ajusta solo el eje Y para mantener la horizontalidad
+        const cameraWorldPos = new THREE.Vector3();
+        camera.getWorldPosition(cameraWorldPos);
+        const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
+        mesh.lookAt(lookAtPos);
+        
         mesh.userData = { answer: num };
         answers.push(mesh);
         scene.add(mesh);
