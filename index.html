@@ -32,7 +32,7 @@
   </style>
 </head>
 <body>
-  <!-- Audio para efectos de acierto y error -->
+  <!-- Audios con rutas RAW (usuario rafgim2) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   
@@ -42,14 +42,14 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = [];
+    let answers = []; // Array de paneles de respuesta (se crean una sola vez)
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
     const collisionThreshold = 0.2;
     const sparksSystems = [];
     
-    // Variable global para guardar el número de respuestas seleccionado
+    // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
     // Función para dibujar un rectángulo redondeado en un canvas
@@ -68,6 +68,29 @@
       ctx.fill();
     }
     
+    // Función para actualizar el panel de respuesta (su textura y userData)
+    function updateAnswerPanel(mesh, value) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#007BFF";
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      ctx.shadowBlur = 0;
+      ctx.font = 'Bold 75px Arial';
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(value, canvas.width / 2, canvas.height / 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      mesh.material.map = texture;
+      mesh.material.needsUpdate = true;
+      mesh.userData.answer = value;
+    }
+    
     function init() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -84,7 +107,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crea el overlay con el título, el selector y el botón AR (generado automáticamente)
+      // Crea el overlay con título, selector y botón AR (generado automáticamente)
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML = 
@@ -99,19 +122,18 @@
           '<option value="9">9</option>' +
           '<option value="10">10</option>' +
         '</select>';
-      
-      // Se crea el botón AR mediante ARButton.createButton y se añade al overlay
       const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR se guarda el número de respuestas y se elimina el overlay
+      // Al iniciar la sesión AR se guarda el número de respuestas y se crea la distribución una única vez
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
+        // Crear los paneles de respuesta solo la primera vez (con posiciones fijas)
+        createAnswerObjects(selectedNumAnswers, true);
         overlay.remove();
         generateQuestion();
-        createAnswerObjects(selectedNumAnswers);
       });
     }
     
@@ -127,6 +149,7 @@
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
       updateQuestionPanel();
+      updateAnswerObjects();
     }
     
     function updateQuestionPanel() {
@@ -135,23 +158,17 @@
       canvas.height = 128;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 10;
-      
       ctx.fillStyle = "#007BFF";
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
-      
       ctx.shadowBlur = 0;
-      
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(questionText, canvas.width / 2, canvas.height / 2);
-      
       const texture = new THREE.CanvasTexture(canvas);
-      
       if (questionMesh) {
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
@@ -164,78 +181,88 @@
       }
     }
     
-    function createAnswerObjects(numAnswers) {
-      // Elimina paneles anteriores
-      answers.forEach(panel => scene.remove(panel));
-      answers = [];
-      
-      // Genera (numAnswers - 1) respuestas incorrectas
-      const wrongAnswers = new Set();
-      while (wrongAnswers.size < (numAnswers - 1)) {
-        let wrong = Math.floor(Math.random() * 100) + 1;
-        if (wrong !== correctAnswer) wrongAnswers.add(wrong);
-      }
-      const answersArray = [correctAnswer, ...wrongAnswers];
-      answersArray.sort(() => Math.random() - 0.5);
-      
-      // Define el arco de distribución según la cantidad de respuestas
-      const minArc = Math.PI / 3; // 60° en radianes
-      const maxArc = Math.PI;     // 180° en radianes
-      let arcAngle;
-      if (numAnswers <= 4) {
-        arcAngle = minArc;
-      } else if (numAnswers >= 10) {
-        arcAngle = maxArc;
+    // Crea los paneles de respuesta. Si initialCreation es true, se generan y se calculan sus posiciones y rotaciones (una sola vez)
+    function createAnswerObjects(numAnswers, initialCreation) {
+      // Calcular la distribución solo en la creación inicial
+      if (initialCreation) {
+        // Definir el arco en función del número de respuestas
+        const minArc = Math.PI / 3; // 60° en radianes
+        const maxArc = Math.PI;     // 180° en radianes
+        let arcAngle;
+        if (numAnswers <= 4) {
+          arcAngle = minArc;
+        } else if (numAnswers >= 10) {
+          arcAngle = maxArc;
+        } else {
+          arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
+        }
+        const angleStart = -arcAngle / 2;
+        const angleEnd = arcAngle / 2;
+        const radius = 0.8;
+        
+        // Generar los valores de respuesta para la primera pregunta
+        const wrongAnswers = new Set();
+        while (wrongAnswers.size < (numAnswers - 1)) {
+          let wrong = Math.floor(Math.random() * 100) + 1;
+          if (wrong !== correctAnswer) wrongAnswers.add(wrong);
+        }
+        const answersArray = [correctAnswer, ...wrongAnswers];
+        answersArray.sort(() => Math.random() - 0.5);
+        
+        // Crear cada panel y fijar su posición/rotación
+        for (let i = 0; i < numAnswers; i++) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = "#007BFF";
+          drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+          ctx.shadowBlur = 0;
+          ctx.font = 'Bold 75px Arial';
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
+          const texture = new THREE.CanvasTexture(canvas);
+          const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+          const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+          const mesh = new THREE.Mesh(geometry, material);
+          // Posición fija según la distribución calculada al inicio
+          const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
+          const x = radius * Math.sin(angle);
+          const z = -radius * Math.cos(angle);
+          mesh.position.set(x, 0, z);
+          // Orientar el panel hacia la cámara (tomada en el inicio)
+          const cameraWorldPos = new THREE.Vector3();
+          camera.getWorldPosition(cameraWorldPos);
+          const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
+          mesh.lookAt(lookAtPos);
+          mesh.userData.answer = answersArray[i];
+          answers.push(mesh);
+          scene.add(mesh);
+        }
       } else {
-        // Interpolación lineal entre 60° y 180°
-        arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
+        // Si no es la creación inicial, no se recalculan posiciones: se actualizan los valores de respuesta.
+        const numAnswersExisting = selectedNumAnswers; // siempre igual al seleccionado
+        const wrongAnswers = new Set();
+        while (wrongAnswers.size < (numAnswersExisting - 1)) {
+          let wrong = Math.floor(Math.random() * 100) + 1;
+          if (wrong !== correctAnswer) wrongAnswers.add(wrong);
+        }
+        const answersArray = [correctAnswer, ...wrongAnswers];
+        answersArray.sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numAnswersExisting; i++) {
+          updateAnswerPanel(answers[i], answersArray[i]);
+        }
       }
-      const angleStart = -arcAngle / 2;
-      const angleEnd = arcAngle / 2;
-      const radius = 0.8;
-      
-      answersArray.forEach((num, index) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 10;
-        
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
-        
-        ctx.shadowBlur = 0;
-        
-        ctx.font = 'Bold 75px Arial';
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(num, canvas.width / 2, canvas.height / 2);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-        const mesh = new THREE.Mesh(geometry, material);
-        
-        // Distribuye uniformemente los paneles en el arco
-        const angle = angleStart + (angleEnd - angleStart) * (index / (numAnswers - 1));
-        const x = radius * Math.sin(angle);
-        const z = -radius * Math.cos(angle);
-        mesh.position.set(x, 0, z);
-        
-        // Hace que cada panel mire hacia la cámara (manteniendo su altura)
-        const cameraWorldPos = new THREE.Vector3();
-        camera.getWorldPosition(cameraWorldPos);
-        const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
-        mesh.lookAt(lookAtPos);
-        
-        mesh.userData = { answer: num };
-        answers.push(mesh);
-        scene.add(mesh);
-      });
+    }
+    
+    // Actualiza los paneles de respuesta con nuevos valores (sin recalcular posiciones)
+    function updateAnswerObjects() {
+      createAnswerObjects(selectedNumAnswers, false);
     }
     
     function createSparksEffect(position) {
@@ -272,7 +299,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualizamos los sistemas de chispas sin bloquear la siguiente pregunta
+      // Actualización de partículas (no bloquea el cambio de pregunta)
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -285,14 +312,13 @@
           positions[j * 3 + 2] += system.velocities[j].z * dt;
         }
         system.points.geometry.attributes.position.needsUpdate = true;
-        // Aunque las partículas duren 2 s, no bloqueamos el cambio de pregunta
         if (currentTime - system.startTime > 2000) {
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
         }
       }
       
-      // Obtenemos puntos de interacción (mano o cámara)
+      // Obtener puntos de interacción (hand tracking o cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -326,36 +352,32 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
-            
-            // Si es la respuesta correcta
+            // Respuesta correcta
             if (panel.userData.answer === correctAnswer) {
-              document.getElementById('successSound').play().catch(e => console.error(e));
+              const successSound = document.getElementById('successSound');
+              // Clonar el audio para permitir solapamiento
+              const successClone = successSound.cloneNode();
+              successClone.play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              // Elimina el panel correcto
               scene.remove(panel);
-              
-              // Espera solo 0.5s y pasa a la siguiente pregunta
+              // Pasar a la siguiente pregunta en 0.5 s
               setTimeout(() => {
                 generateQuestion();
-                createAnswerObjects(selectedNumAnswers);
+                updateAnswerObjects();
                 hasCollided = false;
               }, 500);
-            
-            // Si es la respuesta incorrecta
             } else {
-              document.getElementById('errorSound').play().catch(e => console.error(e));
-              
-              // Poner todas las respuestas en rojo
+              // Respuesta incorrecta
+              const errorSound = document.getElementById('errorSound');
+              const errorClone = errorSound.cloneNode();
+              errorClone.play().catch(e => console.error(e));
               answers.forEach(a => a.material.color.set(0xff0000));
-              
-              // Revertir a color blanco tras 0.5 segundos y permitir seguir intentando
               setTimeout(() => {
                 answers.forEach(a => a.material.color.set(0xffffff));
                 hasCollided = false;
               }, 500);
             }
-            
-            return; // Procesa solo una colisión a la vez
+            return;
           }
         }
       }
