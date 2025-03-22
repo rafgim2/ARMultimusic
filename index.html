@@ -46,7 +46,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Se crean los paneles de respuesta una sola vez
+    let answers = []; // Paneles de respuesta
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -67,6 +67,9 @@
     // - scoreMesh: score (aciertos/fallos)
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
+    
+    // Botones de fin de juego
+    let exitButtonMesh = null, restartButtonMesh = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
@@ -260,7 +263,7 @@
       }
     }
     
-    // Crea o actualiza los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
+    // Crea o actualiza los paneles de respuesta. Si initialCreation es true, se crean; si no, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -397,11 +400,11 @@
         }
       }
       
+      // Obtener puntos de interacción (hand tracking o la posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
         for (const inputSource of session.inputSources) {
-          // Mantenemos el hand tracking para gafas
           if (inputSource.hand) {
             const indexTip = inputSource.hand.get('index-finger-tip');
             if (indexTip) {
@@ -423,37 +426,60 @@
         interactionPoints.push(cameraPos);
       }
       
-      for (let panel of answers) {
-        const panelPos = new THREE.Vector3();
-        panel.getWorldPosition(panelPos);
-        for (const point of interactionPoints) {
-          const distance = point.distanceTo(panelPos);
-          if (distance < collisionThreshold && !hasCollided) {
-            hasCollided = true;
-            if (panel.userData.answer === correctAnswer) {
-              correctCount++;
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch(e => console.error(e));
-              createSparksEffect(panel.position);
-              setTimeout(() => {
-                generateQuestion();
-                hasCollided = false;
-              }, 500);
-            } else {
-              wrongCount++;
-              const errorSound = document.getElementById('errorSound');
-              const errorClone = errorSound.cloneNode();
-              errorClone.play().catch(e => console.error(e));
-              answers.forEach(a => a.material.color.set(0xff0000));
-              setTimeout(() => {
-                answers.forEach(a => a.material.color.set(0xffffff));
-                hasCollided = false;
-              }, 500);
+      // Si el juego sigue activo, se detecta colisión con los paneles de respuesta
+      if (!gameOver) {
+        for (let panel of answers) {
+          const panelPos = new THREE.Vector3();
+          panel.getWorldPosition(panelPos);
+          for (const point of interactionPoints) {
+            const distance = point.distanceTo(panelPos);
+            if (distance < collisionThreshold && !hasCollided) {
+              hasCollided = true;
+              if (panel.userData.answer === correctAnswer) {
+                correctCount++;
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch(e => console.error(e));
+                createSparksEffect(panel.position);
+                setTimeout(() => {
+                  generateQuestion();
+                  hasCollided = false;
+                }, 500);
+              } else {
+                wrongCount++;
+                const errorSound = document.getElementById('errorSound');
+                const errorClone = errorSound.cloneNode();
+                errorClone.play().catch(e => console.error(e));
+                answers.forEach(a => a.material.color.set(0xff0000));
+                setTimeout(() => {
+                  answers.forEach(a => a.material.color.set(0xffffff));
+                  hasCollided = false;
+                }, 500);
+              }
+              return;
             }
-            return;
           }
         }
+      } else {
+        // Si el juego ha terminado, detectar colisión con los botones
+        [exitButtonMesh, restartButtonMesh].forEach(button => {
+          if (!button) return;
+          const buttonPos = new THREE.Vector3();
+          button.getWorldPosition(buttonPos);
+          for (const point of interactionPoints) {
+            const distance = point.distanceTo(buttonPos);
+            if (distance < collisionThreshold && !hasCollided) {
+              hasCollided = true;
+              if (button === exitButtonMesh) {
+                exitGame();
+              } else if (button === restartButtonMesh) {
+                restartGame();
+              }
+              setTimeout(() => { hasCollided = false; }, 500);
+              break;
+            }
+          }
+        });
       }
     }
     
@@ -464,7 +490,7 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Crear malla de "Fin del Juego" en AR con recuadro azul similar al estilo de las respuestas
+      // Mostrar mensaje de "Fin del Juego" con resumen de aciertos y fallos
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
@@ -485,6 +511,50 @@
       const gameOverMesh = new THREE.Mesh(geometry, material);
       gameOverMesh.position.set(0, 0, -1);
       scene.add(gameOverMesh);
+      
+      // Función auxiliar para crear botones con estilo similar
+      function createButton(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#007BFF";
+        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "Bold 36px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        const texture = new THREE.CanvasTexture(canvas);
+        const geom = new THREE.PlaneGeometry(0.4, 0.2);
+        const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        return new THREE.Mesh(geom, mat);
+      }
+      
+      // Crear botón "Salir" y posicionarlo a la izquierda
+      exitButtonMesh = createButton("Salir");
+      exitButtonMesh.position.set(-0.5, -0.7, -1);
+      scene.add(exitButtonMesh);
+      
+      // Crear botón "Reiniciar" y posicionarlo a la derecha
+      restartButtonMesh = createButton("Reiniciar");
+      restartButtonMesh.position.set(0.5, -0.7, -1);
+      scene.add(restartButtonMesh);
+    }
+    
+    // Función para salir de la sesión AR (se intenta terminar la sesión, o se recarga la página)
+    function exitGame() {
+      const session = renderer.xr.getSession();
+      if (session) {
+        session.end();
+      } else {
+        location.reload();
+      }
+    }
+    
+    // Función para reiniciar el juego (recarga la página)
+    function restartGame() {
+      location.reload();
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
