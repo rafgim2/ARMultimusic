@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Bloques 3D</title>
+  <title>Multiplicación en AR con Bloques 3D Grandes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -20,12 +20,12 @@
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false; // para evitar múltiples colisiones simultáneas
+    let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // distancia (en metros) para considerar "colisión"
+    const collisionThreshold = 0.2; // en metros
     
-    // Array para almacenar sistemas de partículas (chispas)
+    // Array para sistemas de partículas
     const sparksSystems = [];
     
     init();
@@ -33,7 +33,6 @@
     createAnswerObjects();
     animate();
     
-    // Desbloquea el audio en móviles con el primer toque
     window.addEventListener('touchstart', function unlockAudio() {
       const audioEl = document.getElementById('successSound');
       audioEl.play().then(() => {
@@ -52,9 +51,7 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Detectar si es móvil usando el user agent
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // Si es móvil, solo se requiere 'hit-test'; en otros, se solicita también 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
@@ -62,7 +59,6 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Crea o actualiza el panel de la pregunta en AR
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -74,7 +70,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria y actualiza el panel en AR
+    // Genera una pregunta aleatoria
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -83,7 +79,7 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta usando un canvas y RoundedBoxGeometry
+    // Actualiza o crea el panel de la pregunta con RoundedBoxGeometry mayor
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -91,9 +87,8 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Fondo azul (sin sombra) y bordes redondeados se dibujan en el canvas
+      // Fondo azul con bordes redondeados
       ctx.fillStyle = "#007BFF";
-      // Dibujo de rectángulo redondeado manual (sin sombra)
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
       
       // Texto en blanco
@@ -105,22 +100,19 @@
       
       const texture = new THREE.CanvasTexture(canvas);
       
-      // Creamos una geometría 3D redondeada para el panel de la pregunta:
-      const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 0.05, 2);
-      // Materiales: asignamos la textura al frente (índice 4) y el resto en azul
+      // Geometría 3D para la pregunta (más grande)
+      const geometry = new RoundedBoxGeometry(0.8, 0.3, 0.1, 0.05, 2);
       const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
       const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
-      // Orden de materiales en BoxGeometry: [right, left, top, bottom, front, back]
       const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
       
       if (questionMesh) {
-        // Actualizamos la textura del frente
         questionMesh.material[4] = frontMat;
         questionMesh.material.needsUpdate = true;
       } else {
         questionMesh = new THREE.Mesh(geometry, materials);
-        // Posiciónalo en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
-        questionMesh.position.set(0, 0.3, -0.8);
+        // Posición ajustada: más lejos y elevado para que se vea bien en AR
+        questionMesh.position.set(0, 0.5, -1.5);
         scene.add(questionMesh);
       }
     }
@@ -141,7 +133,7 @@
       ctx.fill();
     }
     
-    // Crea los paneles de respuesta (uno correcto y tres incorrectos) usando bloques 3D
+    // Crea los paneles de respuesta como bloques 3D grandes
     function createAnswerObjects() {
       answers.forEach(panel => scene.remove(panel));
       answers = [];
@@ -154,7 +146,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // mayor separación
+      const radius = 1.0; // mayor separación
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -178,9 +170,8 @@
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
-        // Creamos una geometría 3D redondeada para cada panel de respuesta:
-        const geometry = new RoundedBoxGeometry(0.15, 0.15, 0.05, 0.02, 2);
-        // Materiales: asignamos la textura al frente (índice 4) y azul para las demás caras
+        // Geometría para cada respuesta
+        const geometry = new RoundedBoxGeometry(0.25, 0.25, 0.1, 0.05, 2);
         const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
         const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
         const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
@@ -197,7 +188,7 @@
       });
     }
     
-    // Crea un efecto de chispas en la posición indicada
+    // Crea efecto de chispas (igual que antes)
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -225,7 +216,7 @@
       });
     }
     
-    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara (en móviles)
+    // Bucle de animación: usa hand tracking (para ambas manos) o la cámara en móviles
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -233,7 +224,6 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -252,7 +242,6 @@
         }
       }
       
-      // Recopila los puntos de interacción: si hay hand tracking en ambas manos, se usan sus datos; si no, se usa la posición de la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -278,7 +267,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Comprueba la "colisión" entre cada panel de respuesta y cada punto de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -296,7 +284,7 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return; // Procesa solo una colisión a la vez
+            return;
           }
         }
       }
