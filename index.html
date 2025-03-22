@@ -48,6 +48,10 @@
     
     /* Ajustes para orientación landscape */
     @media (orientation: landscape) {
+      /* Reducir el tamaño del overlay con escala */
+      #overlay {
+        transform: scale(0.8);
+      }
       /* Reducir tamaños de algunos elementos para que quepan en pantalla */
       #overlay img { max-width: 60%; }
       #overlay a { font-size: 16px; }
