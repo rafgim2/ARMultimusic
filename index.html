@@ -29,20 +29,6 @@
       font-size: 24px;
       margin-bottom: 20px;
     }
-    /* Overlay final de Game Over (HTML) */
-    #gameOverOverlay {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8);
-      color: #fff;
-      padding: 30px 40px;
-      font-size: 28px;
-      border-radius: 10px;
-      text-align: center;
-      z-index: 12;
-    }
   </style>
 </head>
 <body>
@@ -56,7 +42,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Los paneles de respuesta se crean una única vez
+    let answers = []; // Se crean una única vez los paneles de respuesta
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -80,7 +66,6 @@
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -158,7 +143,7 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crea y posiciona los paneles (una sola vez)
+        createAnswerObjects(selectedNumAnswers, true); // Crear paneles una única vez con posiciones fijas
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -188,7 +173,7 @@
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score (aciertos y fallos) en AR, al lado de la cuenta atrás
+    // Crea la malla de score (aciertos y fallos) en AR, a la derecha de la cuenta atrás
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -207,7 +192,6 @@
     function updateCountdown() {
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
-      // Mostrar solo segundos (formato "00:SS")
       const seconds = Math.floor(remaining);
       const display = seconds < 10 ? "00:0" + seconds : "00:" + seconds;
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
@@ -220,11 +204,11 @@
       return remaining;
     }
     
-    // Actualiza la malla de score con los contadores de aciertos y fallos
+    // Actualiza la malla de score con los contadores de aciertos y fallos (texto más pequeño)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
-      scoreCtx.font = "Bold 48px Arial";
+      scoreCtx.font = "Bold 24px Arial"; // La mitad del tamaño anterior
       scoreCtx.textAlign = "center";
       scoreCtx.textBaseline = "middle";
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
@@ -272,7 +256,6 @@
     // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; de lo contrario, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
-        // Calcular la distribución (una sola vez)
         const minArc = Math.PI / 3; // 60° en radianes
         const maxArc = Math.PI;     // 180° en radianes
         let arcAngle;
@@ -287,7 +270,6 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        // Generar los valores para la primera pregunta
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswers - 1)) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -296,7 +278,6 @@
         const answersArray = [correctAnswer, ...wrongAnswers];
         answersArray.sort(() => Math.random() - 0.5);
         
-        // Crear cada panel y fijar su posición y rotación
         for (let i = 0; i < numAnswers; i++) {
           const canvas = document.createElement('canvas');
           canvas.width = 256;
@@ -321,7 +302,6 @@
           const x = radius * Math.sin(angle);
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
-          // Orientar el panel hacia la cámara (tomando la posición inicial de la cámara)
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -331,7 +311,6 @@
           scene.add(mesh);
         }
       } else {
-        // Actualizar solo los valores sin modificar posición/rotación
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -346,7 +325,6 @@
       }
     }
     
-    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -386,7 +364,6 @@
       renderer.render(scene, camera);
       
       const currentTime = performance.now();
-      // Actualizar partículas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
@@ -404,7 +381,6 @@
         }
       }
       
-      // Actualizar cuenta atrás y score en AR mientras el juego no ha finalizado
       if (!gameOver) {
         const remaining = updateCountdown();
         updateScoreDisplay();
@@ -413,7 +389,6 @@
         }
       }
       
-      // Obtener puntos de interacción (hand tracking o, si no, la posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -439,7 +414,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Detección de colisión
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -447,20 +421,17 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
-            // Respuesta correcta
             if (panel.userData.answer === correctAnswer) {
               correctCount++;
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              // Actualizar la pregunta en 0.5 s sin remover los paneles
               setTimeout(() => {
                 generateQuestion();
                 hasCollided = false;
               }, 500);
             } else {
-              // Respuesta incorrecta
               wrongCount++;
               const errorSound = document.getElementById('errorSound');
               const errorClone = errorSound.cloneNode();
@@ -471,7 +442,7 @@
                 hasCollided = false;
               }, 500);
             }
-            return; // Procesa solo una colisión a la vez
+            return;
           }
         }
       }
@@ -479,19 +450,33 @@
     
     function endGame() {
       gameOver = true;
-      // Ocultar objetos AR
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
-      // Mostrar overlay HTML con el resultado final
-      const gameOverOverlay = document.createElement('div');
-      gameOverOverlay.id = 'gameOverOverlay';
-      gameOverOverlay.innerHTML = `<h1>Fin del Juego</h1><p>Aciertos: ${correctCount}</p><p>Fallos: ${wrongCount}</p>`;
-      document.body.appendChild(gameOverOverlay);
+      
+      // Crear malla de "Fin del Juego" en AR
+      const gameOverCanvas = document.createElement('canvas');
+      gameOverCanvas.width = 512;
+      gameOverCanvas.height = 256;
+      const gameOverCtx = gameOverCanvas.getContext('2d');
+      gameOverCtx.fillStyle = "#FFFFFF";
+      gameOverCtx.font = "Bold 48px Arial";
+      gameOverCtx.textAlign = "center";
+      gameOverCtx.textBaseline = "middle";
+      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 60);
+      gameOverCtx.font = "Bold 36px Arial";
+      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 130);
+      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 190);
+      const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
+      const geometry = new THREE.PlaneGeometry(1.0, 0.5);
+      const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
+      const gameOverMesh = new THREE.Mesh(geometry, material);
+      // Posicionar el resultado en AR (por ejemplo, en el centro a 1m frente al usuario)
+      gameOverMesh.position.set(0, 0, -1);
+      scene.add(gameOverMesh);
     }
     
-    // Desbloqueo de audio en móviles
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
@@ -503,7 +488,6 @@
       });
     }, { once: true });
     
-    // Iniciar
     init();
     animate();
   </script>
