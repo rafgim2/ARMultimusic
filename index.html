@@ -2,146 +2,150 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Chispas</title>
+  <title>Multiplicación en AR con Chispas y Pregunta en AR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: sans-serif;
-    }
-    #question {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255,255,255,0.8);
-      padding: 10px;
-      border-radius: 5px;
-      z-index: 10;
-    }
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
   </style>
 </head>
 <body>
-  <!-- Muestra la pregunta -->
-  <div id="question"></div>
-  <!-- Elemento de audio para el sonido de acierto -->
+  <!-- Se utiliza solo audio, ya que la pregunta se mostrará en AR -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
-  <!-- Se cargan Three.js y ARButton -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
-
+    
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false; // Bandera para evitar múltiples colisiones
-    const questionDiv = document.getElementById('question');
-    const collisionThreshold = 0.2; // Distancia en metros para considerar "colisión"
-
-    // Array para almacenar sistemas de partículas (chispas)
+    let hasCollided = false; // para evitar múltiples colisiones simultáneas
+    let questionMesh = null;
+    let questionText = "";
+    const collisionThreshold = 0.2; // distancia para "chocar"
+    
+    // Array para los sistemas de partículas (chispas)
     const sparksSystems = [];
-
-    // Inicializa la escena, genera la pregunta, crea los paneles de respuesta y arranca la animación
+    
     init();
     generateQuestion();
     createAnswerObjects();
     animate();
-
-    // Desbloquea el audio en dispositivos móviles tras el primer toque
+    
+    // Desbloquea el audio en móviles con el primer toque
     window.addEventListener('touchstart', function unlockAudio() {
       const audioEl = document.getElementById('successSound');
       audioEl.play().then(() => {
         audioEl.pause();
         audioEl.currentTime = 0;
-      }).catch((e) => {
-        console.error('Error unlocking audio:', e);
-      });
+      }).catch(e => console.error(e));
     }, { once: true });
-
-    // Genera una pregunta de multiplicación aleatoria y define la respuesta correcta
-    function generateQuestion() {
-      const a = Math.floor(Math.random() * 10) + 1;
-      const b = Math.floor(Math.random() * 10) + 1;
-      correctAnswer = a * b;
-      questionDiv.innerHTML = `¿Cuánto es ${a} x ${b}?`;
-    }
-
+    
     function init() {
-      // Crear escena y cámara
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      // Configurar el render con fondo transparente para ver la cámara real
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+      
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Botón para iniciar la experiencia AR (necesario en WebXR)
+      // Botón AR (requerido para iniciar la sesión AR)
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-
-      // Luz ambiental para iluminar los objetos
+      
+      // Luz ambiental
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
-
+      
       window.addEventListener('resize', onWindowResize, false);
     }
-
-    // Ajusta el render al cambiar el tamaño de la ventana
+    
     function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
-
-    // Crea los paneles con las respuestas (incluye la respuesta correcta y tres incorrectas)
+    
+    // Genera una pregunta aleatoria y actualiza la pregunta en AR
+    function generateQuestion() {
+      const a = Math.floor(Math.random()*10) + 1;
+      const b = Math.floor(Math.random()*10) + 1;
+      correctAnswer = a * b;
+      questionText = `¿Cuánto es ${a} x ${b}?`;
+      updateQuestionPanel();
+    }
+    
+    // Crea o actualiza el panel de la pregunta en AR usando un canvas
+    function updateQuestionPanel() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = 'Bold 48px Arial';
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(questionText, canvas.width/2, canvas.height/2);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      
+      if(questionMesh) {
+        questionMesh.material.map = texture;
+        questionMesh.material.needsUpdate = true;
+      } else {
+        // Crea un panel de tamaño adecuado para la pregunta
+        const geometry = new THREE.PlaneGeometry(0.6, 0.15);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+        questionMesh = new THREE.Mesh(geometry, material);
+        // Posiciónalo en AR: en el centro, por encima de las respuestas
+        // Por ejemplo, x=0, y=0.3 (elevado) y z=-0.8 (a 0.8 m frente al usuario)
+        questionMesh.position.set(0, 0.3, -0.8);
+        scene.add(questionMesh);
+      }
+    }
+    
+    // Crea los paneles de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
-      // Eliminar paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
-
-      // Genera tres respuestas incorrectas (números entre 1 y 100 que no sean iguales a la respuesta correcta)
+      
       const wrongAnswers = new Set();
-      while (wrongAnswers.size < 3) {
-        let wrong = Math.floor(Math.random() * 100) + 1;
-        if (wrong !== correctAnswer) wrongAnswers.add(wrong);
+      while(wrongAnswers.size < 3) {
+        let wrong = Math.floor(Math.random()*100) + 1;
+        if(wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
       const answersArray = [correctAnswer, ...wrongAnswers];
-      // Barajar las respuestas para ubicar aleatoriamente la correcta
-      answersArray.sort(() => Math.random() - 0.5);
-
-      // Distribuir los paneles en un arco horizontal a 0.8 m de la cámara (más separados)
-      const radius = 0.8;
+      answersArray.sort(() => Math.random()-0.5);
+      
+      const radius = 0.8; // separación mayor
       const total = answersArray.length;
-      const angleStart = -Math.PI / 4;
-      const angleEnd = Math.PI / 4;
-
+      const angleStart = -Math.PI/4;
+      const angleEnd = Math.PI/4;
+      
       answersArray.forEach((num, index) => {
-        // Crear un canvas para dibujar el número en un panel pequeño
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#FFFFFF';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        // Tamaño de fuente reducido para panel pequeño
-        context.font = 'Bold 25px Arial';
-        context.fillStyle = '#000000';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(num, canvas.width / 2, canvas.height / 2);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = 'Bold 25px Arial';
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(num, canvas.width/2, canvas.height/2);
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Tamaño reducido del panel (0.15 m x 0.15 m)
+        // Panel pequeño: 0.15 x 0.15 m
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
-
-        // Calcular el ángulo para ubicar cada panel en el arco
-        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
+        
+        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index/(total-1));
         const x = radius * Math.sin(angle);
         const z = - radius * Math.cos(angle);
         mesh.position.set(x, 0, z);
@@ -150,17 +154,16 @@
         scene.add(mesh);
       });
     }
-
-    // Función para crear un efecto de chispas en la posición dada
+    
+    // Crea un efecto de chispas en una posición dada
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
       const velocities = [];
-      // Inicializamos las posiciones y asignamos una velocidad aleatoria a cada partícula
-      for (let i = 0; i < count; i++) {
-        positions[i * 3] = position.x;
-        positions[i * 3 + 1] = position.y;
-        positions[i * 3 + 2] = position.z;
+      for(let i = 0; i < count; i++){
+        positions[i*3] = position.x;
+        positions[i*3+1] = position.y;
+        positions[i*3+2] = position.z;
         velocities.push(new THREE.Vector3(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
@@ -172,7 +175,6 @@
       const material = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.02 });
       const points = new THREE.Points(geometry, material);
       scene.add(points);
-      // Se guarda el sistema de partículas junto con sus velocidades y tiempos
       sparksSystems.push({
         points,
         velocities,
@@ -180,60 +182,53 @@
         lastUpdate: performance.now()
       });
     }
-
-    // Bucle de animación: en cada frame se comprueba si se ha "chocado" el móvil con algún panel y se actualizan los sistemas de chispas
+    
     function animate() {
       renderer.setAnimationLoop(render);
     }
-
+    
     function render() {
       renderer.render(scene, camera);
-
-      // Actualizar sistemas de chispas (partículas)
+      
+      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
-      for (let i = sparksSystems.length - 1; i >= 0; i--) {
+      for(let i = sparksSystems.length - 1; i >= 0; i--){
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
         system.lastUpdate = currentTime;
         const positions = system.points.geometry.attributes.position.array;
-        for (let j = 0; j < system.velocities.length; j++) {
-          positions[j * 3] += system.velocities[j].x * dt;
-          positions[j * 3 + 1] += system.velocities[j].y * dt;
-          positions[j * 3 + 2] += system.velocities[j].z * dt;
+        for(let j = 0; j < system.velocities.length; j++){
+          positions[j*3] += system.velocities[j].x * dt;
+          positions[j*3+1] += system.velocities[j].y * dt;
+          positions[j*3+2] += system.velocities[j].z * dt;
         }
         system.points.geometry.attributes.position.needsUpdate = true;
-        // Eliminar el sistema de chispas después de 2 segundos
-        if (currentTime - system.startTime > 2000) {
+        if(currentTime - system.startTime > 2000){
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
         }
       }
-
-      // Obtener la posición actual de la cámara (móvil)
+      
+      // Detecta "colisión" entre la cámara (móvil) y cada panel de respuesta
       const camPos = new THREE.Vector3();
       camera.getWorldPosition(camPos);
-
-      // Comprobar la "colisión" entre la cámara y cada panel de respuesta
-      for (let panel of answers) {
+      for(let panel of answers){
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
         const distance = camPos.distanceTo(panelPos);
-        if (distance < collisionThreshold && !hasCollided) {
+        if(distance < collisionThreshold && !hasCollided){
           hasCollided = true;
-          if (panel.userData.answer === correctAnswer) {
-            // Reproduce el sonido de acierto
+          if(panel.userData.answer === correctAnswer){
             document.getElementById('successSound').play().catch(e => console.error(e));
-            // Crea el efecto de chispas en la posición del panel y lo elimina de la escena
             createSparksEffect(panel.position);
             scene.remove(panel);
           }
-          // Después de 2 segundos se regenera la pregunta y se vuelven a crear los paneles
           setTimeout(() => {
             generateQuestion();
             createAnswerObjects();
             hasCollided = false;
           }, 2000);
-          break; // Solo se procesa una colisión a la vez
+          break;
         }
       }
     }
