@@ -16,6 +16,7 @@
       background: rgba(255,255,255,0.8);
       padding: 20px;
       border-radius: 10px;
+      z-index: 10;
     }
     #menu h1 {
       margin-bottom: 20px;
@@ -52,6 +53,8 @@
     
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
+    // Variable para almacenar el botón de AR
+    let arButtonElement;
     
     // Función auxiliar para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -69,16 +72,21 @@
       ctx.fill();
     }
     
-    // Función para iniciar el juego en AR
+    // Función para iniciar el juego y el AR (al pulsar "Empezar")
     function startGame() {
       // Ocultar el menú inicial
-      const menu = document.getElementById('menu');
-      menu.style.display = 'none';
+      document.getElementById('menu').style.display = 'none';
       
+      // Inicializa la escena y demás elementos
       init();
       generateQuestion();
       createAnswerObjects();
       animate();
+      
+      // Simula el clic en el botón de AR para iniciar la sesión
+      if (arButtonElement) {
+        arButtonElement.click();
+      }
     }
     
     // Desbloquea el audio en móviles con el primer toque
@@ -104,7 +112,11 @@
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       // Si es móvil, se requiere 'hit-test'; en otros, se solicita también 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
+      
+      // Crea el botón de AR, pero lo oculta ya que usaremos nuestro botón "Empezar"
+      arButtonElement = ARButton.createButton(renderer, { requiredFeatures });
+      arButtonElement.style.display = 'none';
+      document.body.appendChild(arButtonElement);
       
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
@@ -336,7 +348,7 @@
       }
     }
     
-    // Asigna el evento al botón de "Empezar"
+    // Asigna el evento al botón "Empezar"
     document.getElementById('startButton').addEventListener('click', startGame);
     
   </script>
