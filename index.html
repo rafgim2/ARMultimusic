@@ -28,32 +28,10 @@
       font-size: 24px;
       margin-bottom: 20px;
     }
-    /* Overlay final de Game Over (HTML) */
-    #gameOverOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
-      font-size: 24px;
-      z-index: 11;
-    }
-    #gameOverOverlay button {
-      font-size: 20px;
-      margin: 10px;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error y timer (sin loop para timer) -->
+  <!-- Audios: acierto, error, timer (fondo sin loop) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
@@ -67,7 +45,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Se crean los paneles de respuesta una sola vez
+    let answers = []; // Los paneles de respuesta se crean una única vez
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -85,14 +63,17 @@
     
     // Mallas en AR:
     // - countdownMesh: cuenta atrás  
-    // - scoreMesh: aciertos/fallos
+    // - scoreMesh: aciertos/fallos  
+    // - gameOverMesh: recuadro resumen final  
+    // - restartMesh, exitMesh: botones finales
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
+    let gameOverMesh = null, restartMesh = null, exitMesh = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado (estilo de respuestas)
+    // Función para dibujar un rectángulo redondeado (estilo respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -186,7 +167,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Malla para la cuenta atrás en AR, ahora posicionada en (0, 0.50, -0.9)
+    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.50, -0.9)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -201,8 +182,7 @@
       scene.add(countdownMesh);
     }
     
-    // Malla para el score (aciertos y fallos) en AR, ahora situada debajo de las respuestas, por ejemplo en (0, -0.2, -0.8)
-    // (Puedes ajustar el valor de Y para que esté justo debajo de las respuestas)
+    // Crea la malla de score en AR, ahora colocada debajo de las respuestas (por ejemplo, en (0, 0.65, -0.9))
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -212,7 +192,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      scoreMesh.position.set(0, -0.2, -0.8);
+      scoreMesh.position.set(0, 0.65, -0.9);
       scene.add(scoreMesh);
     }
     
@@ -416,105 +396,186 @@
         if (remaining <= 0) {
           endGame();
         }
-      }
-      
-      const session = renderer.xr.getSession();
-      let interactionPoints = [];
-      if (session && xrFrame) {
-        for (const inputSource of session.inputSources) {
-          // Hand tracking para gafas
-          if (inputSource.hand) {
-            const indexTip = inputSource.hand.get('index-finger-tip');
-            if (indexTip) {
-              const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
-              if (jointPose) {
-                interactionPoints.push(new THREE.Vector3(
-                  jointPose.transform.position.x,
-                  jointPose.transform.position.y,
-                  jointPose.transform.position.z
-                ));
+      } else {
+        // Si el juego ha terminado, comprobamos colisiones con los botones finales
+        const session = renderer.xr.getSession();
+        let interactionPoints = [];
+        if (session && xrFrame) {
+          for (const inputSource of session.inputSources) {
+            if (inputSource.hand) {
+              const indexTip = inputSource.hand.get('index-finger-tip');
+              if (indexTip) {
+                const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
+                if (jointPose) {
+                  interactionPoints.push(new THREE.Vector3(
+                    jointPose.transform.position.x,
+                    jointPose.transform.position.y,
+                    jointPose.transform.position.z
+                  ));
+                }
               }
             }
           }
         }
-      }
-      if (interactionPoints.length === 0) {
-        let cameraPos = new THREE.Vector3();
-        camera.getWorldPosition(cameraPos);
-        interactionPoints.push(cameraPos);
+        if (interactionPoints.length === 0) {
+          let cameraPos = new THREE.Vector3();
+          camera.getWorldPosition(cameraPos);
+          interactionPoints.push(cameraPos);
+        }
+        
+        // Comprobar colisiones con restartMesh y exitMesh
+        if (restartMesh) {
+          const restartPos = new THREE.Vector3();
+          restartMesh.getWorldPosition(restartPos);
+          for (const point of interactionPoints) {
+            if (point.distanceTo(restartPos) < collisionThreshold) {
+              // Reiniciar el juego: recargar la página para permitir elegir el número de respuestas
+              location.reload();
+            }
+          }
+        }
+        if (exitMesh) {
+          const exitPos = new THREE.Vector3();
+          exitMesh.getWorldPosition(exitPos);
+          for (const point of interactionPoints) {
+            if (point.distanceTo(exitPos) < collisionThreshold) {
+              // Salir del juego: se muestra un mensaje de "Gracias por jugar" en AR
+              clearScene();
+              const thankYouMesh = createTextPanel("Gracias por jugar", 0, 0, -1);
+              scene.add(thankYouMesh);
+            }
+          }
+        }
       }
       
-      for (let panel of answers) {
-        const panelPos = new THREE.Vector3();
-        panel.getWorldPosition(panelPos);
-        for (const point of interactionPoints) {
-          const distance = point.distanceTo(panelPos);
-          if (distance < collisionThreshold && !hasCollided) {
-            hasCollided = true;
-            if (panel.userData.answer === correctAnswer) {
-              correctCount++;
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch(e => console.error(e));
-              createSparksEffect(panel.position);
-              setTimeout(() => {
-                generateQuestion();
-                hasCollided = false;
-              }, 500);
-            } else {
-              wrongCount++;
-              const errorSound = document.getElementById('errorSound');
-              const errorClone = errorSound.cloneNode();
-              errorClone.play().catch(e => console.error(e));
-              answers.forEach(a => a.material.color.set(0xff0000));
-              setTimeout(() => {
-                answers.forEach(a => a.material.color.set(0xffffff));
-                hasCollided = false;
-              }, 500);
+      // Procesar colisiones para responder preguntas
+      if (!gameOver) {
+        const session = renderer.xr.getSession();
+        let interactionPoints = [];
+        if (session && xrFrame) {
+          for (const inputSource of session.inputSources) {
+            if (inputSource.hand) {
+              const indexTip = inputSource.hand.get('index-finger-tip');
+              if (indexTip) {
+                const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
+                if (jointPose) {
+                  interactionPoints.push(new THREE.Vector3(
+                    jointPose.transform.position.x,
+                    jointPose.transform.position.y,
+                    jointPose.transform.position.z
+                  ));
+                }
+              }
             }
-            return;
+          }
+        }
+        if (interactionPoints.length === 0) {
+          let cameraPos = new THREE.Vector3();
+          camera.getWorldPosition(cameraPos);
+          interactionPoints.push(cameraPos);
+        }
+        
+        for (let panel of answers) {
+          const panelPos = new THREE.Vector3();
+          panel.getWorldPosition(panelPos);
+          for (const point of interactionPoints) {
+            const distance = point.distanceTo(panelPos);
+            if (distance < collisionThreshold && !hasCollided) {
+              hasCollided = true;
+              if (panel.userData.answer === correctAnswer) {
+                correctCount++;
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch(e => console.error(e));
+                createSparksEffect(panel.position);
+                setTimeout(() => {
+                  generateQuestion();
+                  hasCollided = false;
+                }, 500);
+              } else {
+                wrongCount++;
+                const errorSound = document.getElementById('errorSound');
+                const errorClone = errorSound.cloneNode();
+                errorClone.play().catch(e => console.error(e));
+                answers.forEach(a => a.material.color.set(0xff0000));
+                setTimeout(() => {
+                  answers.forEach(a => a.material.color.set(0xffffff));
+                  hasCollided = false;
+                }, 500);
+              }
+              return;
+            }
           }
         }
       }
     }
     
-    function endGame() {
-      gameOver = true;
+    // Función auxiliar para limpiar la escena (al salir)
+    function clearScene() {
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
+      if (restartMesh) scene.remove(restartMesh);
+      if (exitMesh) scene.remove(exitMesh);
+    }
+    
+    // Crea un panel de texto (usando un canvas con fondo azul similar al estilo de las respuestas)
+    function createTextPanel(text, posX, posY, posZ) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = "#007BFF";
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "Bold 48px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      const geometry = new THREE.PlaneGeometry(1.0, 0.5);
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(posX, posY, posZ);
+      return mesh;
+    }
+    
+    // Al finalizar el juego, crear resumen final en AR con dos botones interactivos
+    let restartMesh = null, exitMesh = null;
+    function endGame() {
+      gameOver = true;
+      clearScene();
       
-      // Mostrar overlay HTML final con opciones de reiniciar o salir
-      const gameOverOverlay = document.createElement('div');
-      gameOverOverlay.id = 'gameOverOverlay';
-      gameOverOverlay.innerHTML = `
-        <h1>Fin del Juego</h1>
-        <p>Aciertos: ${correctCount}</p>
-        <p>Fallos: ${wrongCount}</p>
-        <label for="restartNumAnswers">Número de respuestas:</label>
-        <select id="restartNumAnswers">
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-        </select>
-        <button id="restartBtn">Reiniciar</button>
-        <button id="exitBtn">Salir</button>
-      `;
-      document.body.appendChild(gameOverOverlay);
+      // Crear panel final de resumen (recuadro azul)
+      const gameOverCanvas = document.createElement('canvas');
+      gameOverCanvas.width = 512;
+      gameOverCanvas.height = 256;
+      const gameOverCtx = gameOverCanvas.getContext('2d');
+      gameOverCtx.fillStyle = "#007BFF";
+      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 20);
+      gameOverCtx.fillStyle = "#FFFFFF";
+      gameOverCtx.font = "Bold 48px Arial";
+      gameOverCtx.textAlign = "center";
+      gameOverCtx.textBaseline = "middle";
+      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 60);
+      gameOverCtx.font = "Bold 36px Arial";
+      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 130);
+      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 190);
+      const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
+      const gameOverGeometry = new THREE.PlaneGeometry(1.0, 0.5);
+      const gameOverMaterial = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
+      gameOverMesh = new THREE.Mesh(gameOverGeometry, gameOverMaterial);
+      gameOverMesh.position.set(0, 0.2, -1);
+      scene.add(gameOverMesh);
       
-      document.getElementById('restartBtn').addEventListener('click', () => {
-        // Reiniciar la página para volver a empezar y permitir elegir el número de respuestas
-        location.reload();
-      });
-      document.getElementById('exitBtn').addEventListener('click', () => {
-        // Salir: por ejemplo, redirigir a una página de salida o cerrar el overlay
-        gameOverOverlay.innerHTML = `<h1>Gracias por jugar</h1>`;
-      });
+      // Crear botón Reiniciar en AR
+      restartMesh = createTextPanel("Reiniciar", -0.3, -0.3, -1);
+      scene.add(restartMesh);
+      
+      // Crear botón Salir en AR
+      exitMesh = createTextPanel("Salir", 0.3, -0.3, -1);
+      scene.add(exitMesh);
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
