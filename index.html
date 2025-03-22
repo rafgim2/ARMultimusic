@@ -268,7 +268,7 @@
     
     // Crea o actualiza los paneles de respuesta.
     // Se define el ángulo mínimo como 80° (1.39626 rad) y el máximo como 180° (Math.PI).
-    // Si ya se han creado previamente, se usa la transformación original para no recalcular la orientación.
+    // Si ya se han creado previamente, se usan las transformaciones originales.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626; // 80° en radianes
@@ -289,7 +289,6 @@
         if (originalAnswerTransforms === null) {
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
-            // Crear panel
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 256;
@@ -304,9 +303,7 @@
             ctx.fillStyle = "#FFFFFF";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Se asume que el orden de los valores aún se baraja
-            // Se crea un array con la respuesta correcta y respuestas falsas
-            // Para simplificar, se utiliza la misma fórmula que antes:
+            // Se genera el array de respuestas
             const wrongAnswers = new Set();
             while (wrongAnswers.size < (numAnswers - 1)) {
               let wrong = Math.floor(Math.random() * 100) + 1;
@@ -339,7 +336,7 @@
             });
           }
         } else {
-          // Si ya se han almacenado, se crean los paneles usando las transformaciones originales
+          // Usar las transformaciones originales almacenadas
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
             canvas.width = 256;
@@ -355,7 +352,6 @@
             ctx.fillStyle = "#FFFFFF";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Se genera nuevamente el array de respuestas (sin alterar el orden original)
             const wrongAnswers = new Set();
             while (wrongAnswers.size < (numAnswers - 1)) {
               let wrong = Math.floor(Math.random() * 100) + 1;
@@ -377,7 +373,7 @@
           }
         }
       } else {
-        // Actualización de paneles sin recrearlos (solo actualiza la textura)
+        // Actualización de paneles sin recrearlos (solo se actualiza la textura)
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -532,12 +528,10 @@
             const distance = point.distanceTo(buttonPos);
             if (distance < collisionThreshold && !hasCollided) {
               hasCollided = true;
-              // Reproducir sonido de acierto y generar chispas en la posición del botón
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(button.position);
-              // Ocultar el botón (efecto de desaparición)
               button.visible = false;
               setTimeout(() => {
                 if (button === exitButtonMesh) {
@@ -620,38 +614,33 @@
     
     // Función para reiniciar el juego sin recargar la página:
     // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
-    // Aquí, en lugar de recalcular la orientación, se reusan las transformaciones originales.
+    // Se reusa la transformación original de las respuestas para no reorientarlas.
     function restartGame() {
-      // Eliminar elementos finales
       if(finalMessageMesh) scene.remove(finalMessageMesh);
       if(exitButtonMesh) scene.remove(exitButtonMesh);
       if(restartButtonMesh) scene.remove(restartButtonMesh);
       
-      // Reiniciar variables de juego
       correctCount = 0;
       wrongCount = 0;
       gameStartTime = performance.now();
       gameOver = false;
       
-      // Eliminar los paneles antiguos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
-      // Recrear los paneles usando las transformaciones originales (no recalculando su orientación)
-      // Si originalAnswerTransforms ya existe, usamos esos valores; de lo contrario se crea por primera vez.
+      // Usar las transformaciones originales sin recalcular
       createAnswerObjects(selectedNumAnswers, true);
       
-      // Recrear la pregunta, cuenta atrás y score
       generateQuestion();
+      // Asegurarse de que la pregunta se muestra
+      if (questionMesh) questionMesh.visible = true;
       startCountdown();
       createScoreDisplay();
       
-      // Reproducir nuevamente el sonido de fondo (timer)
       const timerSound = document.getElementById('timerSound');
       timerSound.play().catch(e => console.error(e));
     }
     
-    // Desbloqueo de audio en móviles (solo success y error)
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
