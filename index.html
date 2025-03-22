@@ -52,6 +52,7 @@
     // Variable global para guardar el número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
+    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -323,38 +324,32 @@
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
             
-            // Correcto
+            // Si es la respuesta correcta
             if (panel.userData.answer === correctAnswer) {
               document.getElementById('successSound').play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              // Opcional: Eliminar el panel correcto
+              // Elimina el panel correcto
               scene.remove(panel);
               
-              // Tras 2 segundos, nueva pregunta
+              // Espera 2 segundos y genera nueva pregunta
               setTimeout(() => {
                 generateQuestion();
                 createAnswerObjects(selectedNumAnswers);
                 hasCollided = false;
               }, 2000);
             
-            // Incorrecto
+            // Si es la respuesta incorrecta
             } else {
               document.getElementById('errorSound').play().catch(e => console.error(e));
               
               // Poner todas las respuestas en rojo
               answers.forEach(a => a.material.color.set(0xff0000));
               
-              // Revertir a color blanco tras 0.5 segundos
+              // Revertir a color blanco tras 0.5 segundos y permitir seguir intentando
               setTimeout(() => {
                 answers.forEach(a => a.material.color.set(0xffffff));
-              }, 500);
-              
-              // Tras 2 segundos, nueva pregunta
-              setTimeout(() => {
-                generateQuestion();
-                createAnswerObjects(selectedNumAnswers);
                 hasCollided = false;
-              }, 2000);
+              }, 500);
             }
             
             return; // Procesa solo una colisión a la vez
