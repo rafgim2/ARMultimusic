@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Hand Tracking Dual</title>
+  <title>Multiplicación en AR con Hand Tracking Dual y Fallback Móvil</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -27,7 +27,6 @@
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
     
-    // Inicializa la escena, genera la pregunta, crea los paneles de respuesta y arranca la animación
     init();
     generateQuestion();
     createAnswerObjects();
@@ -52,15 +51,17 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Botón para iniciar la experiencia AR (se solicita también hand-tracking)
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'hand-tracking'] }));
+      // Detectar si es móvil usando el user agent
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      // Si es móvil, solo se requiere 'hit-test'; de lo contrario, se solicita también 'hand-tracking'
+      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
-      // Luz ambiental
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Crea el panel de la pregunta en AR
+      // Crea o actualiza el panel de la pregunta en AR
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -101,11 +102,11 @@
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Crea un panel de la pregunta (0.6 x 0.15 m)
+        // Panel de la pregunta de 0.6 x 0.15 m
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciónalo en AR: por ejemplo, en el centro, elevado 0.3 m y 0.8 m frente al usuario
+        // Posiciona la pregunta en AR: por ejemplo, en el centro, 0.3 m de altura y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -113,7 +114,6 @@
     
     // Crea los paneles de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
-      // Elimina paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -125,7 +125,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // para mayor separación
+      const radius = 0.8; // separación mayor
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -187,7 +187,7 @@
       });
     }
     
-    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara
+    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara en móviles
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -195,7 +195,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza los sistemas de chispas
+      // Actualiza sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -214,7 +214,7 @@
         }
       }
       
-      // Recopila los puntos de interacción: utiliza hand tracking en ambas manos si está disponible
+      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles, sino se usa la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -234,7 +234,6 @@
           }
         }
       }
-      // Si no se detecta ninguna mano, usa la posición de la cámara (móvil)
       if (interactionPoints.length === 0) {
         let cameraPos = new THREE.Vector3();
         camera.getWorldPosition(cameraPos);
@@ -259,7 +258,7 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return; // Se procesa solo una colisión a la vez
+            return; // Procesa solo una colisión a la vez
           }
         }
       }
