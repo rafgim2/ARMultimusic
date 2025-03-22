@@ -163,10 +163,13 @@
             '<option value="10">10</option>' +
           '</select>' +
         '</div>';
+      // Creamos el botón AR y lo insertamos justo debajo del contenedor de respuestas
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
-      // Cambiar fondo del botón AR a verde
       arButton.style.backgroundColor = 'green';
+      arButton.style.color = 'white';
+      arButton.style.marginTop = '10px';
       overlay.appendChild(arButton);
+      
       document.body.appendChild(overlay);
       
       renderer.xr.addEventListener('sessionstart', () => {
@@ -232,7 +235,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Si faltan 10 segundos o menos y aún no se ha reproducido el beep, reproducirlo una sola vez
+      // Reproducir el beep solo UNA vez cuando faltan 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
