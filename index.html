@@ -32,9 +32,10 @@
   </style>
 </head>
 <body>
-  <!-- Audios con rutas RAW (usuario rafgim2) -->
+  <!-- Audios: acierto, error y timer (fondo) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
+  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto" loop></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -60,7 +61,7 @@
     
     // Malla de cuenta atrás en AR
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
-    // Malla de score (aciertos y fallos) en AR
+    // Malla de score en AR (aciertos y fallos)
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
     // Número de respuestas seleccionado (global)
@@ -144,11 +145,14 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Se crean los paneles una única vez con posiciones fijas
+        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (distribución fija)
         overlay.remove();
         generateQuestion();
         startCountdown();
         createScoreDisplay();
+        // Reproducir sonido de fondo "timer"
+        const timerSound = document.getElementById('timerSound');
+        timerSound.play().catch(e => console.error(e));
       });
     }
     
@@ -158,7 +162,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Crea la malla para la cuenta atrás y la posiciona justo encima de la pregunta
+    // Crea la malla para la cuenta atrás y la posiciona en (0, 0.5, -0.8)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -169,12 +173,11 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posicionar la cuenta atrás justo encima de la pregunta: (0, 0.4, -0.8)
-      countdownMesh.position.set(0, 0.4, -0.8);
+      countdownMesh.position.set(0, 0.5, -0.8);
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score en AR, posicionándola encima de la cuenta atrás: (0, 0.5, -0.8)
+    // Crea la malla de score en AR y la posiciona en (0, 0.6, -0.8)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -184,7 +187,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      scoreMesh.position.set(0, 0.5, -0.8);
+      scoreMesh.position.set(0, 0.6, -0.8);
       scene.add(scoreMesh);
     }
     
@@ -204,11 +207,11 @@
       return remaining;
     }
     
-    // Actualiza el score en AR con los contadores de aciertos y fallos (texto con la mitad del tamaño)
+    // Actualiza el score en AR con el texto de aciertos y fallos (24px)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
-      scoreCtx.font = "Bold 24px Arial"; // Mitad de tamaño
+      scoreCtx.font = "Bold 24px Arial";
       scoreCtx.textAlign = "center";
       scoreCtx.textBaseline = "middle";
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
@@ -248,13 +251,12 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posicionar la pregunta en (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
+    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; de lo contrario, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -485,7 +487,8 @@
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
-      [successEl, errorEl].forEach(audioEl => {
+      const timerEl = document.getElementById('timerSound');
+      [successEl, errorEl, timerEl].forEach(audioEl => {
         audioEl.play().then(() => {
           audioEl.pause();
           audioEl.currentTime = 0;
