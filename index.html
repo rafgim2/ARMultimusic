@@ -144,7 +144,7 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (distribución fija)
+        createAnswerObjects(selectedNumAnswers, true); // Se crean los paneles una única vez con posiciones fijas
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -161,7 +161,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Malla para la cuenta atrás en AR, posicionada en (0, 0.45, -0.8)
+    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.45, -0.8)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -176,7 +176,7 @@
       scene.add(countdownMesh);
     }
     
-    // Malla de score en AR, posicionada en (0, 0.60, -0.8)
+    // Crea la malla de score en AR, posicionada en (0, 0.60, -0.8)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -250,7 +250,7 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        questionMesh.position.set(0, 0.3, -0.8);
+        questionMesh.position.set(0, 0.3, -0.85);
         scene.add(questionMesh);
       }
     }
@@ -327,6 +327,7 @@
       }
     }
     
+    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -366,6 +367,7 @@
       renderer.render(scene, camera);
       
       const currentTime = performance.now();
+      // Actualizar partículas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
@@ -457,7 +459,7 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Crear malla de "Fin del Juego" en AR con recuadro azul
+      // Crear malla de "Fin del Juego" en AR con recuadro azul (estilo de las respuestas)
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
@@ -480,11 +482,11 @@
       scene.add(gameOverMesh);
     }
     
+    // En el unlock de audio, solo desbloqueamos success y error
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
-      const timerEl = document.getElementById('timerSound');
-      [successEl, errorEl, timerEl].forEach(audioEl => {
+      [successEl, errorEl].forEach(audioEl => {
         audioEl.play().then(() => {
           audioEl.pause();
           audioEl.currentTime = 0;
