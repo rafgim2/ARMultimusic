@@ -23,23 +23,44 @@
     #overlay h1 {
       font-size: 48px;
       margin-bottom: 20px;
-      text-align: center;
     }
     #overlay label, #overlay select {
       font-size: 24px;
       margin-bottom: 20px;
     }
+    /* Overlay final de Game Over (HTML) */
+    #gameOverOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 24px;
+      z-index: 11;
+    }
+    #gameOverOverlay button {
+      font-size: 20px;
+      margin: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error y timer (fondo, sin loop) -->
+  <!-- Audios: acierto, error y timer (sin loop para timer) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    // Si no es móvil, se solicita además hand-tracking
+    // Si no es móvil, solicitamos además "hand-tracking"
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
@@ -64,14 +85,14 @@
     
     // Mallas en AR:
     // - countdownMesh: cuenta atrás  
-    // - scoreMesh: score (aciertos/fallos)
+    // - scoreMesh: aciertos/fallos
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
+    // Función para dibujar un rectángulo redondeado (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -165,7 +186,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.50, -0.9)
+    // Malla para la cuenta atrás en AR, ahora posicionada en (0, 0.50, -0.9)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -180,7 +201,8 @@
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score en AR, posicionada en (0, 0.65, -0.9)
+    // Malla para el score (aciertos y fallos) en AR, ahora situada debajo de las respuestas, por ejemplo en (0, -0.2, -0.8)
+    // (Puedes ajustar el valor de Y para que esté justo debajo de las respuestas)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -190,7 +212,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      scoreMesh.position.set(0, 0.65, -0.8);
+      scoreMesh.position.set(0, -0.2, -0.8);
       scene.add(scoreMesh);
     }
     
@@ -254,13 +276,12 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // La pregunta se posiciona en (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea o actualiza los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
+    // Crea o actualiza los paneles de respuesta
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -401,7 +422,7 @@
       let interactionPoints = [];
       if (session && xrFrame) {
         for (const inputSource of session.inputSources) {
-          // Mantenemos el hand tracking para gafas
+          // Hand tracking para gafas
           if (inputSource.hand) {
             const indexTip = inputSource.hand.get('index-finger-tip');
             if (indexTip) {
@@ -464,27 +485,36 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Crear malla de "Fin del Juego" en AR con recuadro azul similar al estilo de las respuestas
-      const gameOverCanvas = document.createElement('canvas');
-      gameOverCanvas.width = 512;
-      gameOverCanvas.height = 256;
-      const gameOverCtx = gameOverCanvas.getContext('2d');
-      gameOverCtx.fillStyle = "#007BFF";
-      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 20);
-      gameOverCtx.fillStyle = "#FFFFFF";
-      gameOverCtx.font = "Bold 48px Arial";
-      gameOverCtx.textAlign = "center";
-      gameOverCtx.textBaseline = "middle";
-      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 60);
-      gameOverCtx.font = "Bold 36px Arial";
-      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 130);
-      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 190);
-      const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
-      const geometry = new THREE.PlaneGeometry(1.0, 0.5);
-      const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
-      const gameOverMesh = new THREE.Mesh(geometry, material);
-      gameOverMesh.position.set(0, 0, -1);
-      scene.add(gameOverMesh);
+      // Mostrar overlay HTML final con opciones de reiniciar o salir
+      const gameOverOverlay = document.createElement('div');
+      gameOverOverlay.id = 'gameOverOverlay';
+      gameOverOverlay.innerHTML = `
+        <h1>Fin del Juego</h1>
+        <p>Aciertos: ${correctCount}</p>
+        <p>Fallos: ${wrongCount}</p>
+        <label for="restartNumAnswers">Número de respuestas:</label>
+        <select id="restartNumAnswers">
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+        <button id="restartBtn">Reiniciar</button>
+        <button id="exitBtn">Salir</button>
+      `;
+      document.body.appendChild(gameOverOverlay);
+      
+      document.getElementById('restartBtn').addEventListener('click', () => {
+        // Reiniciar la página para volver a empezar y permitir elegir el número de respuestas
+        location.reload();
+      });
+      document.getElementById('exitBtn').addEventListener('click', () => {
+        // Salir: por ejemplo, redirigir a una página de salida o cerrar el overlay
+        gameOverOverlay.innerHTML = `<h1>Gracias por jugar</h1>`;
+      });
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
