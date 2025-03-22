@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Chispas y Pregunta en AR</title>
+  <title>Multiplicación en AR con Hand Tracking</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
   </style>
 </head>
 <body>
-  <!-- Se utiliza solo audio, ya que la pregunta se mostrará en AR -->
+  <!-- Sólo se usa audio, ya que la pregunta se mostrará en AR -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
   <script type="module">
@@ -22,11 +22,12 @@
     let hasCollided = false; // para evitar múltiples colisiones simultáneas
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // distancia para "chocar"
+    const collisionThreshold = 0.2; // distancia (en metros) para considerar "colisión"
     
-    // Array para los sistemas de partículas (chispas)
+    // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
     
+    // Inicializa la escena, genera la pregunta, crea los paneles de respuesta y arranca la animación
     init();
     generateQuestion();
     createAnswerObjects();
@@ -43,7 +44,7 @@
     
     function init() {
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
       
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
@@ -51,27 +52,30 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Botón AR (requerido para iniciar la sesión AR)
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+      // Botón para iniciar la experiencia AR (necesario en WebXR)
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'hand-tracking'] }));
       
       // Luz ambiental
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
+      // Crea el panel de la pregunta en AR
+      updateQuestionPanel();
+      
       window.addEventListener('resize', onWindowResize, false);
     }
     
     function onWindowResize() {
-      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria y actualiza la pregunta en AR
+    // Genera una pregunta aleatoria y actualiza el panel en AR
     function generateQuestion() {
-      const a = Math.floor(Math.random()*10) + 1;
-      const b = Math.floor(Math.random()*10) + 1;
+      const a = Math.floor(Math.random() * 10) + 1;
+      const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
       updateQuestionPanel();
@@ -89,20 +93,19 @@
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(questionText, canvas.width/2, canvas.height/2);
+      ctx.fillText(questionText, canvas.width / 2, canvas.height / 2);
       
       const texture = new THREE.CanvasTexture(canvas);
       
-      if(questionMesh) {
+      if (questionMesh) {
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Crea un panel de tamaño adecuado para la pregunta
+        // Crea un panel de la pregunta (0.6 x 0.15 m)
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciónalo en AR: en el centro, por encima de las respuestas
-        // Por ejemplo, x=0, y=0.3 (elevado) y z=-0.8 (a 0.8 m frente al usuario)
+        // Posiciónalo en AR: por ejemplo, en el centro, elevado 0.3 m y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -110,21 +113,22 @@
     
     // Crea los paneles de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
+      // Elimina paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
       const wrongAnswers = new Set();
-      while(wrongAnswers.size < 3) {
-        let wrong = Math.floor(Math.random()*100) + 1;
-        if(wrong !== correctAnswer) wrongAnswers.add(wrong);
+      while (wrongAnswers.size < 3) {
+        let wrong = Math.floor(Math.random() * 100) + 1;
+        if (wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
       const answersArray = [correctAnswer, ...wrongAnswers];
-      answersArray.sort(() => Math.random()-0.5);
+      answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // separación mayor
+      const radius = 0.8; // para mayor separación
       const total = answersArray.length;
-      const angleStart = -Math.PI/4;
-      const angleEnd = Math.PI/4;
+      const angleStart = -Math.PI / 4;
+      const angleEnd = Math.PI / 4;
       
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
@@ -137,7 +141,7 @@
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(num, canvas.width/2, canvas.height/2);
+        ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
@@ -145,9 +149,9 @@
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
-        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index/(total-1));
+        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
         const x = radius * Math.sin(angle);
-        const z = - radius * Math.cos(angle);
+        const z = -radius * Math.cos(angle);
         mesh.position.set(x, 0, z);
         mesh.userData = { answer: num };
         answers.push(mesh);
@@ -155,15 +159,15 @@
       });
     }
     
-    // Crea un efecto de chispas en una posición dada
+    // Crea un efecto de chispas en la posición indicada
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
       const velocities = [];
-      for(let i = 0; i < count; i++){
-        positions[i*3] = position.x;
-        positions[i*3+1] = position.y;
-        positions[i*3+2] = position.z;
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
         velocities.push(new THREE.Vector3(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
@@ -183,42 +187,71 @@
       });
     }
     
+    // Bucle de animación: detecta la "colisión" usando hand tracking o, en su defecto, la cámara
     function animate() {
       renderer.setAnimationLoop(render);
     }
     
-    function render() {
+    // En el render se utiliza el XRFrame para acceder a los datos de las manos (si están disponibles)
+    function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
       // Actualiza los sistemas de chispas
       const currentTime = performance.now();
-      for(let i = sparksSystems.length - 1; i >= 0; i--){
+      for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
         system.lastUpdate = currentTime;
         const positions = system.points.geometry.attributes.position.array;
-        for(let j = 0; j < system.velocities.length; j++){
-          positions[j*3] += system.velocities[j].x * dt;
-          positions[j*3+1] += system.velocities[j].y * dt;
-          positions[j*3+2] += system.velocities[j].z * dt;
+        for (let j = 0; j < system.velocities.length; j++) {
+          positions[j * 3] += system.velocities[j].x * dt;
+          positions[j * 3 + 1] += system.velocities[j].y * dt;
+          positions[j * 3 + 2] += system.velocities[j].z * dt;
         }
         system.points.geometry.attributes.position.needsUpdate = true;
-        if(currentTime - system.startTime > 2000){
+        if (currentTime - system.startTime > 2000) {
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
         }
       }
       
-      // Detecta "colisión" entre la cámara (móvil) y cada panel de respuesta
-      const camPos = new THREE.Vector3();
-      camera.getWorldPosition(camPos);
-      for(let panel of answers){
+      // Determinar el punto de interacción: si hay hand tracking, usar la punta del dedo índice; si no, usar la posición de la cámara
+      let interactionPoint = new THREE.Vector3();
+      const session = renderer.xr.getSession();
+      let handFound = false;
+      
+      if (session && xrFrame) {
+        for (const inputSource of session.inputSources) {
+          if (inputSource.hand) {
+            const indexTip = inputSource.hand.get('index-finger-tip');
+            if (indexTip) {
+              const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
+              if (jointPose) {
+                interactionPoint.set(
+                  jointPose.transform.position.x,
+                  jointPose.transform.position.y,
+                  jointPose.transform.position.z
+                );
+                handFound = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      // Si no se encontró mano, se usa la posición de la cámara (móvil)
+      if (!handFound) {
+        camera.getWorldPosition(interactionPoint);
+      }
+      
+      // Comprueba la "colisión" entre el punto de interacción y cada panel de respuesta
+      for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
-        const distance = camPos.distanceTo(panelPos);
-        if(distance < collisionThreshold && !hasCollided){
+        const distance = interactionPoint.distanceTo(panelPos);
+        if (distance < collisionThreshold && !hasCollided) {
           hasCollided = true;
-          if(panel.userData.answer === correctAnswer){
+          if (panel.userData.answer === correctAnswer) {
             document.getElementById('successSound').play().catch(e => console.error(e));
             createSparksEffect(panel.position);
             scene.remove(panel);
