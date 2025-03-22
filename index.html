@@ -31,9 +31,18 @@
       color: blue;
       text-decoration: none;
     }
-    #overlay label, #overlay select {
-      font-size: 24px;
+    /* Contenedor para label y select */
+    #overlay .respuestas-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin-bottom: 20px;
+    }
+    #overlay .respuestas-container label {
+      font-size: 16px;
+    }
+    #overlay .respuestas-container select {
+      font-size: 24px;
     }
   </style>
 </head>
@@ -142,17 +151,21 @@
       overlay.innerHTML =
         '<h1>AR MULTIMUSIC</h1>' +
         '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
-        '<label for="numAnswers">Número de respuestas:</label>' +
-        '<select id="numAnswers">' +
-          '<option value="4">4</option>' +
-          '<option value="5">5</option>' +
-          '<option value="6">6</option>' +
-          '<option value="7">7</option>' +
-          '<option value="8">8</option>' +
-          '<option value="9">9</option>' +
-          '<option value="10">10</option>' +
-        '</select>';
+        '<div class="respuestas-container">' +
+          '<label for="numAnswers">Respuestas:</label>' +
+          '<select id="numAnswers">' +
+            '<option value="4">4</option>' +
+            '<option value="5">5</option>' +
+            '<option value="6">6</option>' +
+            '<option value="7">7</option>' +
+            '<option value="8">8</option>' +
+            '<option value="9">9</option>' +
+            '<option value="10">10</option>' +
+          '</select>' +
+        '</div>';
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
+      // Cambiar fondo del botón AR a verde
+      arButton.style.backgroundColor = 'green';
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
@@ -219,7 +232,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir beep solo UNA vez cuando falten 10 segundos
+      // Si faltan 10 segundos o menos y aún no se ha reproducido el beep, reproducirlo una sola vez
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
