@@ -45,6 +45,21 @@
     #overlay .respuestas-container select {
       font-size: 16px;
     }
+    
+    /* Ajustes para orientación landscape */
+    @media (orientation: landscape) {
+      /* Reducir tamaños de algunos elementos para que quepan en pantalla */
+      #overlay img { max-width: 60%; }
+      #overlay a { font-size: 16px; }
+      #overlay .respuestas-container label,
+      #overlay .respuestas-container select { font-size: 14px; }
+      /* Ajustar el canvas para que se adapte a la pantalla */
+      canvas { 
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: contain;
+      }
+    }
   </style>
 </head>
 <body>
