@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    /* Overlay del menú inicial (HTML) */
+    /* Overlay del menú inicial */
     #overlay {
       position: absolute;
       top: 0; left: 0;
@@ -29,6 +29,20 @@
       font-size: 24px;
       margin-bottom: 20px;
     }
+    /* Overlay final de Game Over (HTML) */
+    #gameOverOverlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 30px 40px;
+      font-size: 28px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 12;
+    }
   </style>
 </head>
 <body>
@@ -42,7 +56,7 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Los paneles de respuesta se crean una sola vez
+    let answers = []; // Los paneles de respuesta se crean una única vez
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -53,19 +67,17 @@
     let correctCount = 0;
     let wrongCount = 0;
     
-    // Variables para el tiempo de juego (1 minuto)
+    // Variables para el tiempo de juego
     let gameStartTime = 0;
     const gameDuration = 60; // segundos
     let gameOver = false;
     
-    // Cuenta atrás en AR
+    // Malla de cuenta atrás en AR
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
-    // Score en AR (HUD)
+    // Malla de score en AR
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
-    // Panel final de resultados en AR
-    let finalResultMesh = null;
     
-    // Número de respuestas seleccionado
+    // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
     // Función para dibujar un rectángulo redondeado en un canvas
@@ -123,7 +135,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crear overlay del menú inicial (HTML)
+      // Crea el overlay del menú inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML = 
@@ -142,16 +154,15 @@
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR, guardar selección, crear paneles fijos y HUD en AR, quitar overlay y arrancar juego
+      // Al iniciar la sesión AR se guarda el número de respuestas, se crean los paneles y se inicia el juego
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true);
-        createScoreMesh();
-        createCountdownMesh();
+        createAnswerObjects(selectedNumAnswers, true); // Crea y posiciona los paneles (una sola vez)
         overlay.remove();
         generateQuestion();
-        gameStartTime = performance.now();
+        startCountdown();
+        createScoreDisplay();
       });
     }
     
@@ -161,8 +172,9 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Crea la malla para la cuenta atrás en AR y la posiciona justo encima de la pregunta
-    function createCountdownMesh() {
+    // Crea la malla para la cuenta atrás y la posiciona justo encima de la pregunta
+    function startCountdown() {
+      gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
       countdownCanvas.width = 256;
       countdownCanvas.height = 128;
@@ -171,15 +183,31 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posicionar justo encima de la pregunta (la pregunta está en y = 0.3, así que ponemos la cuenta en y = 0.45)
-      countdownMesh.position.set(0, 0.45, -0.8);
+      // Posicionar la cuenta atrás justo encima de la pregunta (la pregunta está en (0, 0.3, -0.8))
+      countdownMesh.position.set(0, 0.6, -0.8);
       scene.add(countdownMesh);
+    }
+    
+    // Crea la malla de score (aciertos y fallos) en AR, al lado de la cuenta atrás
+    function createScoreDisplay() {
+      scoreCanvas = document.createElement('canvas');
+      scoreCanvas.width = 256;
+      scoreCanvas.height = 128;
+      scoreCtx = scoreCanvas.getContext('2d');
+      scoreTexture = new THREE.CanvasTexture(scoreCanvas);
+      const geometry = new THREE.PlaneGeometry(0.6, 0.3);
+      const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
+      scoreMesh = new THREE.Mesh(geometry, material);
+      // Posicionar el score a la derecha de la cuenta atrás (por ejemplo, en (0.8, 0.6, -0.8))
+      scoreMesh.position.set(0.8, 0.6, -0.8);
+      scene.add(scoreMesh);
     }
     
     // Actualiza la cuenta atrás y devuelve el tiempo restante (en segundos)
     function updateCountdown() {
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
+      // Mostrar solo segundos (formato "00:SS")
       const seconds = Math.floor(remaining);
       const display = seconds < 10 ? "00:0" + seconds : "00:" + seconds;
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
@@ -192,30 +220,11 @@
       return remaining;
     }
     
-    // Crea un panel HUD en AR para mostrar aciertos y fallos, anclado a la cámara
-    function createScoreMesh() {
-      scoreCanvas = document.createElement('canvas');
-      scoreCanvas.width = 256;
-      scoreCanvas.height = 128;
-      scoreCtx = scoreCanvas.getContext('2d');
-      scoreTexture = new THREE.CanvasTexture(scoreCanvas);
-      const geometry = new THREE.PlaneGeometry(0.4, 0.2);
-      const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
-      scoreMesh = new THREE.Mesh(geometry, material);
-      // Posición en el HUD: por ejemplo, en la esquina superior derecha de la vista (adjunta a la cámara)
-      scoreMesh.position.set(0.5, 0.5, -1);
-      // Al agregarlo a la cámara, se mantiene fijo en la vista
-      camera.add(scoreMesh);
-      updateScoreMesh();
-    }
-    
-    // Actualiza el canvas del score con los contadores actuales
-    function updateScoreMesh() {
+    // Actualiza la malla de score con los contadores de aciertos y fallos
+    function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
-      scoreCtx.fillStyle = "#000000";
-      scoreCtx.fillRect(0, 0, scoreCanvas.width, scoreCanvas.height);
-      scoreCtx.font = "Bold 32px Arial";
       scoreCtx.fillStyle = "#FFFFFF";
+      scoreCtx.font = "Bold 48px Arial";
       scoreCtx.textAlign = "center";
       scoreCtx.textBaseline = "middle";
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
@@ -255,16 +264,15 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posicionar la pregunta (por ejemplo, en y = 0.3)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
+    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; de lo contrario, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
-        // Calcular distribución (una sola vez)
+        // Calcular la distribución (una sola vez)
         const minArc = Math.PI / 3; // 60° en radianes
         const maxArc = Math.PI;     // 180° en radianes
         let arcAngle;
@@ -279,7 +287,7 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        // Generar valores para la primera pregunta
+        // Generar los valores para la primera pregunta
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswers - 1)) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -288,7 +296,7 @@
         const answersArray = [correctAnswer, ...wrongAnswers];
         answersArray.sort(() => Math.random() - 0.5);
         
-        // Crear cada panel y fijar su posición y rotación (una vez)
+        // Crear cada panel y fijar su posición y rotación
         for (let i = 0; i < numAnswers; i++) {
           const canvas = document.createElement('canvas');
           canvas.width = 256;
@@ -313,7 +321,7 @@
           const x = radius * Math.sin(angle);
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
-          // Orientar el panel hacia la posición inicial de la cámara
+          // Orientar el panel hacia la cámara (tomando la posición inicial de la cámara)
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -323,7 +331,7 @@
           scene.add(mesh);
         }
       } else {
-        // Solo actualizar valores de cada panel sin cambiar posición
+        // Actualizar solo los valores sin modificar posición/rotación
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -338,7 +346,7 @@
       }
     }
     
-    // Actualiza los paneles de respuesta (sin cambiar su posición)
+    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -377,8 +385,8 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualizar partículas (sin bloquear el cambio de pregunta)
       const currentTime = performance.now();
+      // Actualizar partículas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
@@ -396,10 +404,10 @@
         }
       }
       
-      // Actualizar la cuenta atrás y el score en AR mientras el juego no haya finalizado
+      // Actualizar cuenta atrás y score en AR mientras el juego no ha finalizado
       if (!gameOver) {
         const remaining = updateCountdown();
-        updateScoreMesh();
+        updateScoreDisplay();
         if (remaining <= 0) {
           endGame();
         }
@@ -431,7 +439,7 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Detección de colisión con los paneles de respuesta
+      // Detección de colisión
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -439,20 +447,23 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
+            // Respuesta correcta
             if (panel.userData.answer === correctAnswer) {
               correctCount++;
-              // Reproducir sonido (clonando para solapamiento)
-              const successClone = document.getElementById('successSound').cloneNode();
+              const successSound = document.getElementById('successSound');
+              const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              // Pasar a la siguiente pregunta en 0.5 s (actualiza solo los valores)
+              // Actualizar la pregunta en 0.5 s sin remover los paneles
               setTimeout(() => {
                 generateQuestion();
                 hasCollided = false;
               }, 500);
             } else {
+              // Respuesta incorrecta
               wrongCount++;
-              const errorClone = document.getElementById('errorSound').cloneNode();
+              const errorSound = document.getElementById('errorSound');
+              const errorClone = errorSound.cloneNode();
               errorClone.play().catch(e => console.error(e));
               answers.forEach(a => a.material.color.set(0xff0000));
               setTimeout(() => {
@@ -460,59 +471,24 @@
                 hasCollided = false;
               }, 500);
             }
-            return; // Solo procesa una colisión a la vez
+            return; // Procesa solo una colisión a la vez
           }
         }
       }
     }
     
-    // Actualiza el score en el HUD (canvas adjunto a la cámara)
-    function updateScoreMesh() {
-      scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
-      scoreCtx.fillStyle = "#000000";
-      scoreCtx.fillRect(0, 0, scoreCanvas.width, scoreCanvas.height);
-      scoreCtx.font = "Bold 32px Arial";
-      scoreCtx.fillStyle = "#FFFFFF";
-      scoreCtx.textAlign = "center";
-      scoreCtx.textBaseline = "middle";
-      scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
-      scoreTexture.needsUpdate = true;
-    }
-    
-    // Cuando se acaba el tiempo, finaliza el juego y muestra el resultado final en AR
     function endGame() {
       gameOver = true;
-      // Remover objetos de juego
+      // Ocultar objetos AR
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
+      if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
-      // Remover el HUD de score de la cámara
-      if (scoreMesh) camera.remove(scoreMesh);
-      // Mostrar el resultado final en AR (panel final, anclado a la cámara)
-      showFinalResult();
-    }
-    
-    function showFinalResult() {
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = 512;
-      finalCanvas.height = 256;
-      const finalCtx = finalCanvas.getContext('2d');
-      finalCtx.fillStyle = "#000000";
-      finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-      finalCtx.font = "Bold 48px Arial";
-      finalCtx.fillStyle = "#FFFFFF";
-      finalCtx.textAlign = "center";
-      finalCtx.textBaseline = "middle";
-      finalCtx.fillText("Fin del Juego", finalCanvas.width / 2, finalCanvas.height / 3);
-      finalCtx.fillText(`Aciertos: ${correctCount}`, finalCanvas.width / 2, finalCanvas.height / 2);
-      finalCtx.fillText(`Fallos: ${wrongCount}`, finalCanvas.width / 2, finalCanvas.height * 2 / 3);
-      const finalTexture = new THREE.CanvasTexture(finalCanvas);
-      const geometry = new THREE.PlaneGeometry(0.8, 0.4);
-      const material = new THREE.MeshBasicMaterial({ map: finalTexture, transparent: true });
-      finalResultMesh = new THREE.Mesh(geometry, material);
-      // Posicionar el panel final en el centro de la vista (anclado a la cámara)
-      finalResultMesh.position.set(0, 0, -1);
-      camera.add(finalResultMesh);
+      // Mostrar overlay HTML con el resultado final
+      const gameOverOverlay = document.createElement('div');
+      gameOverOverlay.id = 'gameOverOverlay';
+      gameOverOverlay.innerHTML = `<h1>Fin del Juego</h1><p>Aciertos: ${correctCount}</p><p>Fallos: ${wrongCount}</p>`;
+      document.body.appendChild(gameOverOverlay);
     }
     
     // Desbloqueo de audio en móviles
@@ -527,6 +503,7 @@
       });
     }, { once: true });
     
+    // Iniciar
     init();
     animate();
   </script>
