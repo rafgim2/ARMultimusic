@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Hand Tracking Dual y Paneles 3D</title>
+  <title>Multiplicación en AR con Bloques 3D</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -15,6 +15,7 @@
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
+    import { RoundedBoxGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/geometries/RoundedBoxGeometry.js';
     
     let camera, scene, renderer;
     let correctAnswer;
@@ -26,22 +27,6 @@
     
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
-    
-    // Función auxiliar para dibujar un rectángulo redondeado en un canvas
-    function drawRoundedRect(ctx, x, y, width, height, radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-      ctx.fill();
-    }
     
     init();
     generateQuestion();
@@ -98,7 +83,7 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta usando un canvas
+    // Crea o actualiza el panel de la pregunta usando un canvas y RoundedBoxGeometry
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -106,17 +91,12 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Aplica sombra para dar efecto de profundidad
-      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-      ctx.shadowBlur = 10;
-      
-      // Fondo azul con bordes redondeados
-      ctx.fillStyle = "#007BFF"; // azul
+      // Fondo azul (sin sombra) y bordes redondeados se dibujan en el canvas
+      ctx.fillStyle = "#007BFF";
+      // Dibujo de rectángulo redondeado manual (sin sombra)
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
       
-      ctx.shadowBlur = 0;
-      
-      // Dibuja el texto en blanco
+      // Texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -125,23 +105,44 @@
       
       const texture = new THREE.CanvasTexture(canvas);
       
+      // Creamos una geometría 3D redondeada para el panel de la pregunta:
+      const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 0.05, 2);
+      // Materiales: asignamos la textura al frente (índice 4) y el resto en azul
+      const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+      const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
+      // Orden de materiales en BoxGeometry: [right, left, top, bottom, front, back]
+      const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
+      
       if (questionMesh) {
-        questionMesh.material.map = texture;
+        // Actualizamos la textura del frente
+        questionMesh.material[4] = frontMat;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Panel de la pregunta de 0.6 x 0.15 m
-        const geometry = new THREE.PlaneGeometry(0.6, 0.15);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-        questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciona la pregunta en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
+        questionMesh = new THREE.Mesh(geometry, materials);
+        // Posiciónalo en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los paneles de respuesta (uno correcto y tres incorrectos)
+    // Función auxiliar para dibujar un rectángulo redondeado en un canvas
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    // Crea los paneles de respuesta (uno correcto y tres incorrectos) usando bloques 3D
     function createAnswerObjects() {
-      // Elimina paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -153,7 +154,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // separación mayor
+      const radius = 0.8; // mayor separación
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -165,17 +166,11 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Aplica sombra para simular profundidad
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 10;
-        
-        // Fondo azul con bordes redondeados
+        // Fondo azul y bordes redondeados
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
         
-        ctx.shadowBlur = 0;
-        
-        // Texto en tamaño 75 (en mayúsculas y negrita) en color blanco
+        // Texto en tamaño 75px en blanco
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -183,10 +178,14 @@
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Panel pequeño: 0.15 x 0.15 m
-        const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-        const mesh = new THREE.Mesh(geometry, material);
+        // Creamos una geometría 3D redondeada para cada panel de respuesta:
+        const geometry = new RoundedBoxGeometry(0.15, 0.15, 0.05, 0.02, 2);
+        // Materiales: asignamos la textura al frente (índice 4) y azul para las demás caras
+        const frontMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const otherMat = new THREE.MeshBasicMaterial({ color: 0x007BFF, side: THREE.DoubleSide });
+        const materials = [otherMat, otherMat, otherMat, otherMat, frontMat, otherMat];
+        
+        const mesh = new THREE.Mesh(geometry, materials);
         
         let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
         const x = radius * Math.sin(angle);
@@ -226,7 +225,7 @@
       });
     }
     
-    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara en móviles
+    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara (en móviles)
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -253,7 +252,7 @@
         }
       }
       
-      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles; si no, se usa la cámara
+      // Recopila los puntos de interacción: si hay hand tracking en ambas manos, se usan sus datos; si no, se usa la posición de la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
