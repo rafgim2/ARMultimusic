@@ -263,11 +263,12 @@
       }
     }
     
-    // Crea o actualiza los paneles de respuesta. Si initialCreation es true, se crean; si no, solo se actualizan los valores.
+    // Crea o actualiza los paneles de respuesta.  
+    // Se define el ángulo mínimo como 80° (1.39626 rad) y el máximo como 180° (Math.PI)
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
-        const minArc = Math.PI / 3; // 60° en radianes
-        const maxArc = Math.PI;     // 180° en radianes
+        const minArc = 1.39626; // 80° en radianes
+        const maxArc = Math.PI;  // 180° en radianes
         let arcAngle;
         if (numAnswers <= 4) {
           arcAngle = minArc;
@@ -312,6 +313,7 @@
           const x = radius * Math.sin(angle);
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
+          // Se mantiene la misma orientación (lookAt) de la primera creación
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -578,13 +580,17 @@
       // Limpiar paneles de respuestas anteriores
       answers = [];
       
-      // Recrear paneles de respuesta
+      // Recrear paneles de respuesta sin cambiar la orientación (se usarán los mismos parámetros que en la primera creación)
       createAnswerObjects(selectedNumAnswers, true);
       
       // Recrear pregunta, cuenta atrás y score
       generateQuestion();
       startCountdown();
       createScoreDisplay();
+      
+      // Reproducir nuevamente el sonido de fondo (timer)
+      const timerSound = document.getElementById('timerSound');
+      timerSound.play().catch(e => console.error(e));
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
