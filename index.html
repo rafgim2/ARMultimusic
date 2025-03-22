@@ -31,7 +31,7 @@
       color: blue;
       text-decoration: none;
     }
-    /* Contenedor para label y select */
+    /* Contenedor para el selector de respuestas */
     #overlay .respuestas-container {
       display: flex;
       align-items: center;
@@ -55,6 +55,7 @@
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
+    // Si no es móvil, se solicita además hand-tracking
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
@@ -77,7 +78,7 @@
     const gameDuration = 60; // segundos
     let gameOver = false;
     
-    // Mallas en AR:
+    // Mallas en AR: cuenta atrás y score
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
@@ -90,7 +91,7 @@
     // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar la reproducción del beep (solo una vez)
+    // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -146,6 +147,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
+      // Crear overlay inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
@@ -163,11 +165,17 @@
             '<option value="10">10</option>' +
           '</select>' +
         '</div>';
-      // Creamos el botón AR y lo insertamos justo debajo del contenedor de respuestas
+      // Crear el botón AR y modificar sus estilos para fondo verde y texto blanco.
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
+      // Eliminar el botón de su contenedor original (si ya fue añadido a body)
+      if (arButton.parentNode) {
+        arButton.parentNode.removeChild(arButton);
+      }
       arButton.style.backgroundColor = 'green';
       arButton.style.color = 'white';
+      arButton.style.fontSize = '16px';
       arButton.style.marginTop = '10px';
+      // Insertar el botón justo debajo del contenedor de respuestas:
       overlay.appendChild(arButton);
       
       document.body.appendChild(overlay);
@@ -235,7 +243,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir el beep solo UNA vez cuando faltan 10 segundos
+      // Reproducir el beep solo UNA vez cuando falten 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
