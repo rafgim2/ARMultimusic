@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Hand Tracking</title>
+  <title>Multiplicación en AR con Hand Tracking Dual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
   </style>
 </head>
 <body>
-  <!-- Sólo se usa audio, ya que la pregunta se mostrará en AR -->
+  <!-- Solo se utiliza audio, ya que la pregunta se muestra en AR -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
   <script type="module">
@@ -52,7 +52,7 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Botón para iniciar la experiencia AR (necesario en WebXR)
+      // Botón para iniciar la experiencia AR (se solicita también hand-tracking)
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'hand-tracking'] }));
       
       // Luz ambiental
@@ -187,12 +187,11 @@
       });
     }
     
-    // Bucle de animación: detecta la "colisión" usando hand tracking o, en su defecto, la cámara
+    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara
     function animate() {
       renderer.setAnimationLoop(render);
     }
     
-    // En el render se utiliza el XRFrame para acceder a los datos de las manos (si están disponibles)
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
@@ -215,11 +214,9 @@
         }
       }
       
-      // Determinar el punto de interacción: si hay hand tracking, usar la punta del dedo índice; si no, usar la posición de la cámara
-      let interactionPoint = new THREE.Vector3();
+      // Recopila los puntos de interacción: utiliza hand tracking en ambas manos si está disponible
       const session = renderer.xr.getSession();
-      let handFound = false;
-      
+      let interactionPoints = [];
       if (session && xrFrame) {
         for (const inputSource of session.inputSources) {
           if (inputSource.hand) {
@@ -227,41 +224,43 @@
             if (indexTip) {
               const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
               if (jointPose) {
-                interactionPoint.set(
+                interactionPoints.push(new THREE.Vector3(
                   jointPose.transform.position.x,
                   jointPose.transform.position.y,
                   jointPose.transform.position.z
-                );
-                handFound = true;
-                break;
+                ));
               }
             }
           }
         }
       }
-      // Si no se encontró mano, se usa la posición de la cámara (móvil)
-      if (!handFound) {
-        camera.getWorldPosition(interactionPoint);
+      // Si no se detecta ninguna mano, usa la posición de la cámara (móvil)
+      if (interactionPoints.length === 0) {
+        let cameraPos = new THREE.Vector3();
+        camera.getWorldPosition(cameraPos);
+        interactionPoints.push(cameraPos);
       }
       
-      // Comprueba la "colisión" entre el punto de interacción y cada panel de respuesta
+      // Comprueba la "colisión" entre cada panel de respuesta y cada punto de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
-        const distance = interactionPoint.distanceTo(panelPos);
-        if (distance < collisionThreshold && !hasCollided) {
-          hasCollided = true;
-          if (panel.userData.answer === correctAnswer) {
-            document.getElementById('successSound').play().catch(e => console.error(e));
-            createSparksEffect(panel.position);
-            scene.remove(panel);
+        for (const point of interactionPoints) {
+          const distance = point.distanceTo(panelPos);
+          if (distance < collisionThreshold && !hasCollided) {
+            hasCollided = true;
+            if (panel.userData.answer === correctAnswer) {
+              document.getElementById('successSound').play().catch(e => console.error(e));
+              createSparksEffect(panel.position);
+              scene.remove(panel);
+            }
+            setTimeout(() => {
+              generateQuestion();
+              createAnswerObjects();
+              hasCollided = false;
+            }, 2000);
+            return; // Se procesa solo una colisión a la vez
           }
-          setTimeout(() => {
-            generateQuestion();
-            createAnswerObjects();
-            hasCollided = false;
-          }, 2000);
-          break;
         }
       }
     }
