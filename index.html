@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    /* Estilos para el overlay inicial */
+    /* Estilos para el overlay inicial centrado */
     #overlay {
       position: absolute;
       top: 0; left: 0;
@@ -17,11 +17,13 @@
       justify-content: center;
       align-items: center;
       color: #fff;
+      text-align: center; /* Centra el contenido horizontalmente */
       z-index: 10;
     }
     #overlay h1 {
       font-size: 48px;
       margin-bottom: 20px;
+      text-align: center;
     }
   </style>
 </head>
@@ -39,10 +41,9 @@
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // Distancia para detectar "colisión"
+    const collisionThreshold = 0.2;
     const sparksSystems = [];
     
-    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -58,7 +59,6 @@
       ctx.fill();
     }
     
-    // Inicializa la escena, la cámara y el renderizador
     function init() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -69,7 +69,6 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Agrega una luz ambiental
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
@@ -80,12 +79,10 @@
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML = '<h1>AR MULTIMUSIC</h1>';
-      // Crea el botón AR usando ARButton.createButton y lo agrega al overlay
       const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR se elimina el overlay y se generan preguntas y respuestas
       renderer.xr.addEventListener('sessionstart', () => {
         overlay.remove();
         generateQuestion();
@@ -99,7 +96,6 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Genera una pregunta aleatoria y actualiza el panel en AR
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
       const b = Math.floor(Math.random() * 10) + 1;
@@ -108,7 +104,6 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta utilizando un canvas
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -116,17 +111,14 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Sombra para dar efecto de profundidad
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 10;
       
-      // Fondo azul con bordes redondeados
       ctx.fillStyle = "#007BFF";
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
       
       ctx.shadowBlur = 0;
       
-      // Texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -139,7 +131,6 @@
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Crea el panel de la pregunta (0.6 x 0.15 m) y lo posiciona en AR
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
@@ -148,9 +139,7 @@
       }
     }
     
-    // Crea los paneles de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
-      // Elimina paneles anteriores
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -162,7 +151,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // Distancia para distribuir las respuestas
+      const radius = 0.8;
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -174,17 +163,14 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Sombra para simular profundidad
         ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
         ctx.shadowBlur = 10;
         
-        // Fondo azul con bordes redondeados
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
         
         ctx.shadowBlur = 0;
         
-        // Texto en mayúsculas y negrita en color blanco
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -193,7 +179,6 @@
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Crea un panel pequeño (0.15 x 0.15 m)
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
@@ -207,7 +192,6 @@
       });
     }
     
-    // Crea un efecto de chispas en la posición indicada
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -235,7 +219,6 @@
       });
     }
     
-    // Bucle de animación y detección de colisiones
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -243,7 +226,6 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -262,7 +244,6 @@
         }
       }
       
-      // Recopila puntos de interacción (hand tracking o cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -288,7 +269,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Detección de colisión entre cada panel de respuesta y los puntos de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -312,7 +292,6 @@
       }
     }
     
-    // Desbloquea el audio en móviles con el primer toque
     window.addEventListener('touchstart', function unlockAudio() {
       const audioEl = document.getElementById('successSound');
       audioEl.play().then(() => {
