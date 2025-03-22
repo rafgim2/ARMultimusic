@@ -63,7 +63,7 @@
     const gameDuration = 60; // segundos
     let gameOver = false;
     
-    // Mallas en AR:
+    // Mallas en AR
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
@@ -73,10 +73,10 @@
     // Número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
-    // Almacenar la posición y orientación originales de cada panel
+    // Transformaciones originales para mantener la orientación de los paneles
     let originalAnswerTransforms = null;
     
-    // Variable para controlar que el beep se reproduzca solo UNA vez cuando queden 10 seg.
+    // Control para que el beep se reproduzca solo UNA vez
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -157,9 +157,8 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Configuramos el timer para reproducirse una sola vez
+        // Reproducir el timer una sola vez
         const timerSound = document.getElementById('timerSound');
-        // Quita loop para que solo suene una vez
         timerSound.loop = false;
         timerSound.currentTime = 0;
         timerSound.play().catch(e => console.error(e));
@@ -216,7 +215,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Si faltan 10 segundos o menos y aún no se ha reproducido el beep, reproducirlo UNA sola vez
+      // Reproducir beep solo UNA vez cuando se llegue a 10 segundos o menos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -248,7 +247,6 @@
       }
       updateQuestionPanel();
       updateAnswerObjects();
-      // Reiniciar el flag del beep para la nueva pregunta
       beepPlayed = false;
     }
     
@@ -276,7 +274,6 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posición original de la pregunta: (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -546,6 +543,14 @@
           }
         });
       }
+      
+      // Vigilar que, si el juego sigue activo y timerSound se ha parado, se reactiva.
+      if (!gameOver) {
+        const timerSound = document.getElementById('timerSound');
+        if (timerSound.paused && timerSound.currentTime < timerSound.duration) {
+          timerSound.play().catch(e => console.error(e));
+        }
+      }
     }
     
     function endGame() {
@@ -580,7 +585,6 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
-      // Los botones finales se colocan encima del cuadro de resultados y a la misma distancia del usuario (z = -0.8)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -638,7 +642,7 @@
       
       const timerSound = document.getElementById('timerSound');
       timerSound.currentTime = 0;
-      // No se configura loop para que solo se reproduzca una vez
+      timerSound.loop = false;
       timerSound.play().catch(e => console.error(e));
     }
     
