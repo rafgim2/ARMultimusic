@@ -232,6 +232,11 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
+      // Eliminamos la malla antigua (si existe) para forzar la creación nueva
+      if(questionMesh) {
+        scene.remove(questionMesh);
+        questionMesh = null;
+      }
       updateQuestionPanel();
       updateAnswerObjects();
     }
@@ -260,8 +265,8 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // La pregunta se posiciona en (0, 0.3, -0.8)
-        questionMesh.position.set(0, 0.3, -0.8);
+        // Posición más cercana al usuario: z = -0.5 en lugar de -0.8
+        questionMesh.position.set(0, 0.3, -0.5);
         scene.add(questionMesh);
       }
     }
@@ -303,7 +308,6 @@
             ctx.fillStyle = "#FFFFFF";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Se genera el array de respuestas
             const wrongAnswers = new Set();
             while (wrongAnswers.size < (numAnswers - 1)) {
               let wrong = Math.floor(Math.random() * 100) + 1;
@@ -574,7 +578,7 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
-      finalMessageMesh.position.set(0, 0, -1);
+      finalMessageMesh.position.set(0, 0, -0.5);
       scene.add(finalMessageMesh);
       
       // Función auxiliar para crear botones con estilo similar
@@ -596,14 +600,13 @@
         return new THREE.Mesh(geom, mat);
       }
       
-      // Crear botón "Salir" y posicionarlo a la izquierda con y = -0.4
+      // Botones más cerca del usuario: z = -0.5
       exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, -0.4, -1);
+      exitButtonMesh.position.set(-0.5, -0.4, -0.5);
       scene.add(exitButtonMesh);
       
-      // Crear botón "Reiniciar" y posicionarlo a la derecha con y = -0.4
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, -0.4, -1);
+      restartButtonMesh.position.set(0.5, -0.4, -0.5);
       scene.add(restartButtonMesh);
     }
     
@@ -614,11 +617,17 @@
     
     // Función para reiniciar el juego sin recargar la página:
     // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
-    // Se reusa la transformación original de las respuestas para no reorientarlas.
+    // Se reusan las transformaciones originales de las respuestas para no reorientarlas.
     function restartGame() {
       if(finalMessageMesh) scene.remove(finalMessageMesh);
       if(exitButtonMesh) scene.remove(exitButtonMesh);
       if(restartButtonMesh) scene.remove(restartButtonMesh);
+      
+      // Remover la malla de la pregunta antigua y forzar su recreación
+      if (questionMesh) {
+        scene.remove(questionMesh);
+        questionMesh = null;
+      }
       
       correctCount = 0;
       wrongCount = 0;
@@ -628,12 +637,11 @@
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
-      // Usar las transformaciones originales sin recalcular
+      // Usar las transformaciones originales sin recalcular (se mantienen del primer inicio)
       createAnswerObjects(selectedNumAnswers, true);
       
+      // Generar una nueva pregunta (se crea la malla de la pregunta con nueva textura y posición)
       generateQuestion();
-      // Asegurarse de que la pregunta se muestra
-      if (questionMesh) questionMesh.visible = true;
       startCountdown();
       createScoreDisplay();
       
