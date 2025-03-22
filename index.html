@@ -32,21 +32,21 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error, timer (fondo: sin loop) -->
+  <!-- Audios: acierto, error y timer (fondo, sin loop) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    // Si no es móvil, solicitar "hand-tracking" además de "hit-test"
+    // Si no es móvil, se solicita además hand-tracking
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Los paneles de respuesta se crean una sola vez
+    let answers = []; // Se crean los paneles de respuesta una sola vez
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
@@ -64,16 +64,14 @@
     
     // Mallas en AR:
     // - countdownMesh: cuenta atrás  
-    // - scoreMesh: score (aciertos y fallos)
-    // - finalResultMesh, finalRestartMesh, finalExitMesh: opciones finales
+    // - scoreMesh: score (aciertos/fallos)
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
-    let finalResultMesh = null, finalRestartMesh = null, finalExitMesh = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado (estilo de respuestas)
+    // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -150,7 +148,7 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles una única vez con posiciones fijas (a nivel de 0 en Y)
+        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (posición fija)
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -167,7 +165,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Malla para la cuenta atrás en AR, posicionada en (0, 0.50, -0.9)
+    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.50, -0.9)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -182,9 +180,7 @@
       scene.add(countdownMesh);
     }
     
-    // Malla de score en AR, posicionada debajo de las respuestas, en (0, -0.2, -0.8)
-    // Pero según la nueva indicación, queremos que aparezca debajo de las respuestas. Las respuestas se crean en y = 0.
-    // Por ejemplo, podemos colocar el score en (0, -0.2, -0.8).
+    // Crea la malla de score en AR, posicionada en (0, 0.65, -0.9)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -194,7 +190,6 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      // Para que aparezca debajo de las respuestas (respuestas en y=0), podemos posicionarlo en, por ejemplo, (0, -0.2, -0.8)
       scoreMesh.position.set(0, -0.2, -0.8);
       scene.add(scoreMesh);
     }
@@ -402,11 +397,11 @@
         }
       }
       
-      // Obtener puntos de interacción (hand tracking o posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
         for (const inputSource of session.inputSources) {
+          // Mantenemos el hand tracking para gafas
           if (inputSource.hand) {
             const indexTip = inputSource.hand.get('index-finger-tip');
             if (indexTip) {
@@ -460,20 +455,6 @@
           }
         }
       }
-      
-      // Si el juego ha terminado, y las opciones finales ya han sido creadas, comprobamos colisiones con ellas
-      if (gameOver && finalRestartMesh && finalExitMesh) {
-        for (const point of interactionPoints) {
-          if (point.distanceTo(finalRestartMesh.position) < collisionThreshold) {
-            restartGame();
-            return;
-          }
-          if (point.distanceTo(finalExitMesh.position) < collisionThreshold) {
-            exitGame();
-            return;
-          }
-        }
-      }
     }
     
     function endGame() {
@@ -482,13 +463,8 @@
       if (countdownMesh) scene.remove(countdownMesh);
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
-      createFinalOptions();
-    }
-    
-    // Crea el panel final con el resultado y dos opciones: Reiniciar y Salir
-    let finalRestartMesh = null, finalExitMesh = null;
-    function createFinalOptions() {
-      // Panel final con recuadro azul (resultado final)
+      
+      // Crear malla de "Fin del Juego" en AR con recuadro azul similar al estilo de las respuestas
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
@@ -504,74 +480,11 @@
       gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 130);
       gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 190);
       const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
-      const resultGeometry = new THREE.PlaneGeometry(1.0, 0.5);
-      const resultMaterial = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
-      finalResultMesh = new THREE.Mesh(resultGeometry, resultMaterial);
-      // Posicionar el resultado en AR, por ejemplo en (0, 0, -1)
-      finalResultMesh.position.set(0, 0, -1);
-      scene.add(finalResultMesh);
-      
-      // Botón "Reiniciar"
-      const restartCanvas = document.createElement('canvas');
-      restartCanvas.width = 256;
-      restartCanvas.height = 128;
-      const restartCtx = restartCanvas.getContext('2d');
-      restartCtx.fillStyle = "#007BFF";
-      drawRoundedRect(restartCtx, 0, 0, restartCanvas.width, restartCanvas.height, 20);
-      restartCtx.fillStyle = "#FFFFFF";
-      restartCtx.font = "Bold 36px Arial";
-      restartCtx.textAlign = "center";
-      restartCtx.textBaseline = "middle";
-      restartCtx.fillText("Reiniciar", restartCanvas.width / 2, restartCanvas.height / 2);
-      const restartTexture = new THREE.CanvasTexture(restartCanvas);
-      const restartGeometry = new THREE.PlaneGeometry(0.4, 0.2);
-      const restartMaterial = new THREE.MeshBasicMaterial({ map: restartTexture, transparent: true });
-      finalRestartMesh = new THREE.Mesh(restartGeometry, restartMaterial);
-      // Posicionar el botón "Reiniciar" debajo del resultado, por ejemplo en (-0.3, -0.7, -1)
-      finalRestartMesh.position.set(-0.3, -0.7, -1);
-      scene.add(finalRestartMesh);
-      
-      // Botón "Salir"
-      const exitCanvas = document.createElement('canvas');
-      exitCanvas.width = 256;
-      exitCanvas.height = 128;
-      const exitCtx = exitCanvas.getContext('2d');
-      exitCtx.fillStyle = "#007BFF";
-      drawRoundedRect(exitCtx, 0, 0, exitCanvas.width, exitCanvas.height, 20);
-      exitCtx.fillStyle = "#FFFFFF";
-      exitCtx.font = "Bold 36px Arial";
-      exitCtx.textAlign = "center";
-      exitCtx.textBaseline = "middle";
-      exitCtx.fillText("Salir", exitCanvas.width / 2, exitCanvas.height / 2);
-      const exitTexture = new THREE.CanvasTexture(exitCanvas);
-      const exitGeometry = new THREE.PlaneGeometry(0.4, 0.2);
-      const exitMaterial = new THREE.MeshBasicMaterial({ map: exitTexture, transparent: true });
-      finalExitMesh = new THREE.Mesh(exitGeometry, exitMaterial);
-      // Posicionar el botón "Salir" a la derecha del botón de reiniciar, por ejemplo en (0.3, -0.7, -1)
-      finalExitMesh.position.set(0.3, -0.7, -1);
-      scene.add(finalExitMesh);
-    }
-    
-    // Reinicia el juego: elimina opciones finales y resetea contadores y elementos AR
-    function restartGame() {
-      gameOver = false;
-      correctCount = 0;
-      wrongCount = 0;
-      // Eliminar mallas finales
-      scene.remove(finalResultMesh);
-      scene.remove(finalRestartMesh);
-      scene.remove(finalExitMesh);
-      // Reiniciar contadores y recrear elementos AR (pregunta, cuenta atrás, score y actualizar respuestas)
-      generateQuestion();
-      // Reiniciar cuenta atrás
-      startCountdown();
-      createScoreDisplay();
-      // (Opcional) Reiniciar variables globales si es necesario
-    }
-    
-    // Sale del juego (en este ejemplo se recarga la página)
-    function exitGame() {
-      location.reload();
+      const geometry = new THREE.PlaneGeometry(1.0, 0.5);
+      const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
+      const gameOverMesh = new THREE.Mesh(geometry, material);
+      gameOverMesh.position.set(0, 0, -1);
+      scene.add(gameOverMesh);
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
