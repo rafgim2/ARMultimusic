@@ -36,7 +36,6 @@
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
-  <!-- Audio para pitido corto (se reproducirá UNA sola vez al bajar a 10 seg.) -->
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
@@ -63,7 +62,7 @@
     const gameDuration = 60; // segundos
     let gameOver = false;
     
-    // Mallas en AR
+    // Mallas en AR:
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
@@ -73,10 +72,10 @@
     // Número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
-    // Transformaciones originales para mantener la orientación de los paneles
+    // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Control para que el beep se reproduzca solo UNA vez
+    // Variable para controlar la reproducción del beep (solo una vez)
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -157,10 +156,9 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Reproducir el timer una sola vez
+        // Configurar el timer en loop y reproducirlo
         const timerSound = document.getElementById('timerSound');
-        timerSound.loop = false;
-        timerSound.currentTime = 0;
+        timerSound.loop = true;
         timerSound.play().catch(e => console.error(e));
       });
     }
@@ -215,7 +213,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir beep solo UNA vez cuando se llegue a 10 segundos o menos
+      // Reproducir el beep solo una vez cuando remaining <= 10
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -247,6 +245,7 @@
       }
       updateQuestionPanel();
       updateAnswerObjects();
+      // Reiniciar el flag del beep para la nueva pregunta
       beepPlayed = false;
     }
     
@@ -543,14 +542,6 @@
           }
         });
       }
-      
-      // Vigilar que, si el juego sigue activo y timerSound se ha parado, se reactiva.
-      if (!gameOver) {
-        const timerSound = document.getElementById('timerSound');
-        if (timerSound.paused && timerSound.currentTime < timerSound.duration) {
-          timerSound.play().catch(e => console.error(e));
-        }
-      }
     }
     
     function endGame() {
@@ -642,7 +633,7 @@
       
       const timerSound = document.getElementById('timerSound');
       timerSound.currentTime = 0;
-      timerSound.loop = false;
+      timerSound.loop = true;
       timerSound.play().catch(e => console.error(e));
     }
     
