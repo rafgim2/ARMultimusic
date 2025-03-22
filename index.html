@@ -441,8 +441,13 @@
                 const successClone = successSound.cloneNode();
                 successClone.play().catch(e => console.error(e));
                 createSparksEffect(panel.position);
+                // Ocultar la pregunta y respuestas durante 500ms antes de mostrar la siguiente
+                if(questionMesh) questionMesh.visible = false;
+                answers.forEach(a => a.visible = false);
                 setTimeout(() => {
                   generateQuestion();
+                  if(questionMesh) questionMesh.visible = true;
+                  answers.forEach(a => a.visible = true);
                   hasCollided = false;
                 }, 500);
               } else {
@@ -531,14 +536,14 @@
         return new THREE.Mesh(geom, mat);
       }
       
-      // Crear botón "Salir" y posicionarlo a la izquierda
+      // Crear botón "Salir" y posicionarlo a la izquierda con y = -0.2
       exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, -0.7, -1);
+      exitButtonMesh.position.set(-0.5, -0.2, -1);
       scene.add(exitButtonMesh);
       
-      // Crear botón "Reiniciar" y posicionarlo a la derecha
+      // Crear botón "Reiniciar" y posicionarlo a la derecha con y = -0.2
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, -0.7, -1);
+      restartButtonMesh.position.set(0.5, -0.2, -1);
       scene.add(restartButtonMesh);
     }
     
