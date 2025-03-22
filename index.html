@@ -60,7 +60,7 @@
     
     // Malla de cuenta atrás en AR
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
-    // Malla de score en AR
+    // Malla de score (aciertos y fallos) en AR
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
     // Número de respuestas seleccionado (global)
@@ -144,7 +144,7 @@
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (distribución fija)
+        createAnswerObjects(selectedNumAnswers, true); // Se crean los paneles una única vez con posiciones fijas
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -169,12 +169,12 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posicionar la cuenta atrás justo encima de la pregunta (pregunta en (0, 0.3, -0.8))
-      countdownMesh.position.set(0, 0.6, -0.8);
+      // Posicionar la cuenta atrás justo encima de la pregunta: (0, 0.4, -0.8)
+      countdownMesh.position.set(0, 0.4, -0.8);
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score (aciertos y fallos) en AR, posicionándola **encima** de la cuenta atrás
+    // Crea la malla de score en AR, posicionándola encima de la cuenta atrás: (0, 0.5, -0.8)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -184,8 +184,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      // Posicionar el score encima de la cuenta atrás (por ejemplo, en (0, 0.9, -0.8))
-      scoreMesh.position.set(0, 0.9, -0.8);
+      scoreMesh.position.set(0, 0.5, -0.8);
       scene.add(scoreMesh);
     }
     
@@ -205,7 +204,7 @@
       return remaining;
     }
     
-    // Actualiza la malla de score con los contadores de aciertos y fallos (texto con la mitad de tamaño)
+    // Actualiza el score en AR con los contadores de aciertos y fallos (texto con la mitad del tamaño)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
@@ -249,12 +248,13 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
+        // Posicionar la pregunta en (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; de lo contrario, solo se actualizan los valores.
+    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -326,7 +326,7 @@
       }
     }
     
-    // Actualiza los paneles de respuesta con nuevos valores
+    // Actualiza los paneles de respuesta con nuevos valores (sin cambiar posición)
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -366,6 +366,7 @@
       renderer.render(scene, camera);
       
       const currentTime = performance.now();
+      // Actualizar partículas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
@@ -462,10 +463,8 @@
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
       const gameOverCtx = gameOverCanvas.getContext('2d');
-      // Dibujar recuadro azul con bordes redondeados
       gameOverCtx.fillStyle = "#007BFF";
       drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 20);
-      // Escribir el resultado en blanco
       gameOverCtx.fillStyle = "#FFFFFF";
       gameOverCtx.font = "Bold 48px Arial";
       gameOverCtx.textAlign = "center";
@@ -478,7 +477,6 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       const gameOverMesh = new THREE.Mesh(geometry, material);
-      // Posicionar el recuadro final en AR (por ejemplo, en el centro a 1 metro frente al usuario)
       gameOverMesh.position.set(0, 0, -1);
       scene.add(gameOverMesh);
     }
