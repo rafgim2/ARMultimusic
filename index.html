@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR con Hand Tracking Dual y Fallback Móvil</title>
+  <title>Multiplicación en AR con Hand Tracking Dual y Paneles 3D</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -26,6 +26,22 @@
     
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
+    
+    // Función auxiliar para dibujar un rectángulo redondeado en un canvas
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
     
     init();
     generateQuestion();
@@ -53,7 +69,7 @@
       
       // Detectar si es móvil usando el user agent
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // Si es móvil, solo se requiere 'hit-test'; de lo contrario, se solicita también 'hand-tracking'
+      // Si es móvil, solo se requiere 'hit-test'; en otros, se solicita también 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
@@ -82,16 +98,27 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta en AR usando un canvas
+    // Crea o actualiza el panel de la pregunta usando un canvas
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 128;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Aplica sombra para dar efecto de profundidad
+      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      ctx.shadowBlur = 10;
+      
+      // Fondo azul con bordes redondeados
+      ctx.fillStyle = "#007BFF"; // azul
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      
+      ctx.shadowBlur = 0;
+      
+      // Dibuja el texto en blanco
       ctx.font = 'Bold 48px Arial';
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(questionText, canvas.width / 2, canvas.height / 2);
@@ -106,7 +133,7 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciona la pregunta en AR: por ejemplo, en el centro, 0.3 m de altura y 0.8 m frente al usuario
+        // Posiciona la pregunta en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -114,6 +141,7 @@
     
     // Crea los paneles de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
+      // Elimina paneles previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -135,10 +163,21 @@
         canvas.width = 256;
         canvas.height = 256;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Aplica sombra para simular profundidad
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 10;
+        
+        // Fondo azul con bordes redondeados
+        ctx.fillStyle = "#007BFF";
+        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+        
+        ctx.shadowBlur = 0;
+        
+        // Texto en tamaño 75 (en mayúsculas y negrita) en color blanco
         ctx.font = 'Bold 75px Arial';
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
@@ -195,7 +234,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza sistemas de chispas
+      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -214,7 +253,7 @@
         }
       }
       
-      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles, sino se usa la cámara
+      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles; si no, se usa la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
