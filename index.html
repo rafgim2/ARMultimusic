@@ -41,20 +41,17 @@
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
     
     let camera, scene, renderer;
     let correctAnswer;
     let answers = [];
-    let hasCollided = false; // para evitar múltiples colisiones simultáneas
+    let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // distancia (en metros) para considerar "colisión"
+    const collisionThreshold = 0.2; // Distancia para considerar una colisión
     
-    // Array para almacenar sistemas de partículas (chispas)
+    // Array para almacenar los sistemas de partículas (chispas)
     const sparksSystems = [];
-    // Variable para almacenar el botón de AR
-    let arButtonElement;
     
     // Función auxiliar para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -72,21 +69,30 @@
       ctx.fill();
     }
     
-    // Función para iniciar el juego y el AR (al pulsar "Empezar")
+    // Función que inicia la experiencia AR directamente
     function startGame() {
-      // Ocultar el menú inicial
+      // Oculta el menú
       document.getElementById('menu').style.display = 'none';
       
-      // Inicializa la escena y demás elementos
+      // Inicializa la escena, cámara y renderer
       init();
-      generateQuestion();
-      createAnswerObjects();
-      animate();
       
-      // Simula el clic en el botón de AR para iniciar la sesión
-      if (arButtonElement) {
-        arButtonElement.click();
-      }
+      // Detecta si es móvil para determinar las características requeridas
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
+      
+      // Solicita la sesión AR directamente usando el gesto del usuario (clic en "Empezar")
+      navigator.xr.requestSession('immersive-ar', { requiredFeatures })
+      .then(session => {
+          renderer.xr.setSession(session);
+          // Una vez iniciada la sesión AR, se generan la pregunta, las respuestas y se arranca la animación
+          generateQuestion();
+          createAnswerObjects();
+          animate();
+      })
+      .catch(err => {
+          console.error("Error iniciando la sesión AR:", err);
+      });
     }
     
     // Desbloquea el audio en móviles con el primer toque
@@ -108,21 +114,11 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
       
-      // Detectar si es móvil usando el user agent
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // Si es móvil, se requiere 'hit-test'; en otros, se solicita también 'hand-tracking'
-      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
-      
-      // Crea el botón de AR, pero lo oculta ya que usaremos nuestro botón "Empezar"
-      arButtonElement = ARButton.createButton(renderer, { requiredFeatures });
-      arButtonElement.style.display = 'none';
-      document.body.appendChild(arButtonElement);
-      
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Crea o actualiza el panel de la pregunta en AR
+      // Prepara el panel de la pregunta (se actualizará luego)
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -151,17 +147,14 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Aplica sombra para dar efecto de profundidad
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 10;
       
-      // Fondo azul con bordes redondeados
-      ctx.fillStyle = "#007BFF"; // azul
+      ctx.fillStyle = "#007BFF";
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
       
       ctx.shadowBlur = 0;
       
-      // Dibuja el texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -174,11 +167,10 @@
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Panel de la pregunta de 0.6 x 0.15 m
+        // Panel de la pregunta: 0.6 x 0.15 m, posicionado en AR
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciona la pregunta en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -198,7 +190,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      const radius = 0.8; // separación mayor
+      const radius = 0.8;
       const total = answersArray.length;
       const angleStart = -Math.PI / 4;
       const angleEnd = Math.PI / 4;
@@ -210,17 +202,14 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Aplica sombra para simular profundidad
         ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
         ctx.shadowBlur = 10;
         
-        // Fondo azul con bordes redondeados
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
         
         ctx.shadowBlur = 0;
         
-        // Texto en tamaño 75 (en mayúsculas y negrita) en color blanco
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -229,7 +218,6 @@
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Panel pequeño: 0.15 x 0.15 m
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
@@ -271,7 +259,7 @@
       });
     }
     
-    // Bucle de animación: se detecta la "colisión" usando hand tracking (para ambas manos) o la cámara en móviles
+    // Bucle de animación
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -279,7 +267,6 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza los sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -298,7 +285,6 @@
         }
       }
       
-      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles; si no, se usa la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -324,7 +310,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Comprueba la "colisión" entre cada panel de respuesta y cada punto de interacción
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -342,13 +327,12 @@
               createAnswerObjects();
               hasCollided = false;
             }, 2000);
-            return; // Procesa solo una colisión a la vez
+            return;
           }
         }
       }
     }
     
-    // Asigna el evento al botón "Empezar"
     document.getElementById('startButton').addEventListener('click', startGame);
     
   </script>
