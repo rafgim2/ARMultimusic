@@ -25,6 +25,10 @@
       margin-bottom: 20px;
       text-align: center;
     }
+    #overlay label, #overlay select {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
@@ -41,7 +45,7 @@
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
-    const collisionThreshold = 0.2; // Distancia para detectar "colisión"
+    const collisionThreshold = 0.2;
     const sparksSystems = [];
     
     // Función para dibujar un rectángulo redondeado en un canvas
@@ -76,18 +80,34 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crea el overlay con el título y el botón AR (generado automáticamente)
+      // Crea el overlay con el título, un selector y el botón AR (generado automáticamente)
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
-      overlay.innerHTML = '<h1>AR MULTIMUSIC</h1>';
+      overlay.innerHTML = 
+        '<h1>AR MULTIMUSIC</h1>' +
+        '<label for="numAnswers">Número de respuestas:</label>' +
+        '<select id="numAnswers">' +
+          '<option value="4">4</option>' +
+          '<option value="5">5</option>' +
+          '<option value="6">6</option>' +
+          '<option value="7">7</option>' +
+          '<option value="8">8</option>' +
+          '<option value="9">9</option>' +
+          '<option value="10">10</option>' +
+        '</select>';
+      
+      // Crea el botón AR usando ARButton.createButton y lo añade al overlay
       const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
+      // Cuando inicie la sesión AR se elimina el overlay y se generan preguntas y respuestas
       renderer.xr.addEventListener('sessionstart', () => {
+        // Lee el número seleccionado; por defecto, si falla, se usan 4 respuestas
+        const numAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
         overlay.remove();
         generateQuestion();
-        createAnswerObjects();
+        createAnswerObjects(numAnswers);
       });
     }
     
@@ -140,23 +160,24 @@
       }
     }
     
-    // Se modificó esta función para que cada respuesta se oriente hacia la cámara
-    function createAnswerObjects() {
+    // La función recibe el número total de respuestas a generar (incluye la correcta)
+    function createAnswerObjects(numAnswers) {
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
+      // Genera (numAnswers - 1) respuestas incorrectas
       const wrongAnswers = new Set();
-      while (wrongAnswers.size < 3) {
+      while (wrongAnswers.size < (numAnswers - 1)) {
         let wrong = Math.floor(Math.random() * 100) + 1;
         if (wrong !== correctAnswer) wrongAnswers.add(wrong);
       }
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
+      // Distribuye los paneles en un arco de 180° (desde -90° a +90°)
       const radius = 0.8;
-      const total = answersArray.length;
-      const angleStart = -Math.PI / 4;
-      const angleEnd = Math.PI / 4;
+      const angleStart = -Math.PI / 2;
+      const angleEnd = Math.PI / 2;
       
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
@@ -184,12 +205,13 @@
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
-        let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
+        // Calcula el ángulo en función del índice para distribuirlos uniformemente
+        let angle = angleStart + (angleEnd - angleStart) * (index / (numAnswers - 1));
         const x = radius * Math.sin(angle);
         const z = -radius * Math.cos(angle);
         mesh.position.set(x, 0, z);
         
-        // Calcula la posición de la cámara y ajusta solo el eje Y para mantener la horizontalidad
+        // Hace que cada panel mire hacia la cámara (manteniendo su altura)
         const cameraWorldPos = new THREE.Vector3();
         camera.getWorldPosition(cameraWorldPos);
         const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -292,7 +314,9 @@
             }
             setTimeout(() => {
               generateQuestion();
-              createAnswerObjects();
+              // Vuelve a generar respuestas con el mismo número elegido
+              const numAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+              createAnswerObjects(numAnswers);
               hasCollided = false;
             }, 2000);
             return;
