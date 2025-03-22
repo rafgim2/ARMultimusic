@@ -48,6 +48,9 @@
     const collisionThreshold = 0.2;
     const sparksSystems = [];
     
+    // Variable global para guardar el número de respuestas seleccionado
+    let selectedNumAnswers = 4;
+    
     // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
@@ -80,7 +83,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crea el overlay con el título, un selector y el botón AR (generado automáticamente)
+      // Crea el overlay con el título, el selector y el botón AR (generado automáticamente)
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML = 
@@ -96,18 +99,18 @@
           '<option value="10">10</option>' +
         '</select>';
       
-      // Crea el botón AR usando ARButton.createButton y lo añade al overlay
+      // Se crea el botón AR mediante ARButton.createButton y se añade al overlay
       const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Cuando inicie la sesión AR se elimina el overlay y se generan preguntas y respuestas
+      // Al iniciar la sesión AR se guarda el número de respuestas seleccionado y se elimina el overlay
       renderer.xr.addEventListener('sessionstart', () => {
-        // Lee el número seleccionado; por defecto, si falla, se usan 4 respuestas
-        const numAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+        const sel = document.getElementById('numAnswers');
+        selectedNumAnswers = sel ? parseInt(sel.value) : 4;
         overlay.remove();
         generateQuestion();
-        createAnswerObjects(numAnswers);
+        createAnswerObjects(selectedNumAnswers);
       });
     }
     
@@ -160,8 +163,9 @@
       }
     }
     
-    // La función recibe el número total de respuestas a generar (incluye la correcta)
+    // La función ahora recibe el número total de respuestas a generar
     function createAnswerObjects(numAnswers) {
+      // Elimina paneles anteriores
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -174,10 +178,21 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      // Distribuye los paneles en un arco de 180° (desde -90° a +90°)
+      // Define el arco de distribución según la cantidad de respuestas:
+      // Para 4 respuestas usamos 60° (π/3), para 10 respuestas 180° (π)
+      const minArc = Math.PI / 3; // 60° en radianes
+      const maxArc = Math.PI;     // 180° en radianes
+      let arcAngle;
+      if (numAnswers <= 4) {
+        arcAngle = minArc;
+      } else if (numAnswers >= 10) {
+        arcAngle = maxArc;
+      } else {
+        arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
+      }
+      const angleStart = -arcAngle / 2;
+      const angleEnd = arcAngle / 2;
       const radius = 0.8;
-      const angleStart = -Math.PI / 2;
-      const angleEnd = Math.PI / 2;
       
       answersArray.forEach((num, index) => {
         const canvas = document.createElement('canvas');
@@ -205,8 +220,8 @@
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
-        // Calcula el ángulo en función del índice para distribuirlos uniformemente
-        let angle = angleStart + (angleEnd - angleStart) * (index / (numAnswers - 1));
+        // Distribuye uniformemente los paneles en el arco definido
+        const angle = angleStart + (angleEnd - angleStart) * (index / (numAnswers - 1));
         const x = radius * Math.sin(angle);
         const z = -radius * Math.cos(angle);
         mesh.position.set(x, 0, z);
@@ -314,9 +329,8 @@
             }
             setTimeout(() => {
               generateQuestion();
-              // Vuelve a generar respuestas con el mismo número elegido
-              const numAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-              createAnswerObjects(numAnswers);
+              // Se usa la variable global selectedNumAnswers para regenerar las respuestas
+              createAnswerObjects(selectedNumAnswers);
               hasCollided = false;
             }, 2000);
             return;
