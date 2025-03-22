@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Multiplicación en AR</title>
+  <title>Multiplicación en AR con Chispas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body {
@@ -38,6 +38,9 @@
     let hasCollided = false; // Bandera para evitar múltiples colisiones
     const questionDiv = document.getElementById('question');
     const collisionThreshold = 0.2; // Distancia en metros para considerar "colisión"
+
+    // Array para almacenar sistemas de partículas (chispas)
+    const sparksSystems = [];
 
     // Inicializa la escena, genera la pregunta, crea los paneles de respuesta y arranca la animación
     init();
@@ -133,7 +136,7 @@
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        // Tamaño del panel reducido (0.15 m x 0.15 m)
+        // Tamaño reducido del panel (0.15 m x 0.15 m)
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
 
@@ -148,7 +151,37 @@
       });
     }
 
-    // Bucle de animación: en cada frame se comprueba si el móvil "colisiona" con alguno de los paneles
+    // Función para crear un efecto de chispas en la posición dada
+    function createSparksEffect(position) {
+      const count = 100;
+      const positions = new Float32Array(count * 3);
+      const velocities = [];
+      // Inicializamos las posiciones y asignamos una velocidad aleatoria a cada partícula
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
+        velocities.push(new THREE.Vector3(
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5
+        ));
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const material = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.02 });
+      const points = new THREE.Points(geometry, material);
+      scene.add(points);
+      // Se guarda el sistema de partículas junto con sus velocidades y tiempos
+      sparksSystems.push({
+        points,
+        velocities,
+        startTime: performance.now(),
+        lastUpdate: performance.now()
+      });
+    }
+
+    // Bucle de animación: en cada frame se comprueba si se ha "chocado" el móvil con algún panel y se actualizan los sistemas de chispas
     function animate() {
       renderer.setAnimationLoop(render);
     }
@@ -156,26 +189,48 @@
     function render() {
       renderer.render(scene, camera);
 
+      // Actualizar sistemas de chispas (partículas)
+      const currentTime = performance.now();
+      for (let i = sparksSystems.length - 1; i >= 0; i--) {
+        const system = sparksSystems[i];
+        const dt = (currentTime - system.lastUpdate) / 1000;
+        system.lastUpdate = currentTime;
+        const positions = system.points.geometry.attributes.position.array;
+        for (let j = 0; j < system.velocities.length; j++) {
+          positions[j * 3] += system.velocities[j].x * dt;
+          positions[j * 3 + 1] += system.velocities[j].y * dt;
+          positions[j * 3 + 2] += system.velocities[j].z * dt;
+        }
+        system.points.geometry.attributes.position.needsUpdate = true;
+        // Eliminar el sistema de chispas después de 2 segundos
+        if (currentTime - system.startTime > 2000) {
+          scene.remove(system.points);
+          sparksSystems.splice(i, 1);
+        }
+      }
+
       // Obtener la posición actual de la cámara (móvil)
       const camPos = new THREE.Vector3();
       camera.getWorldPosition(camPos);
 
-      // Recorrer cada panel y comprobar la distancia al móvil
+      // Comprobar la "colisión" entre la cámara y cada panel de respuesta
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
         const distance = camPos.distanceTo(panelPos);
-
         if (distance < collisionThreshold && !hasCollided) {
           hasCollided = true;
           if (panel.userData.answer === correctAnswer) {
-            // Reproduce el sonido de acierto y muestra mensaje de éxito
+            // Reproduce el sonido de acierto
             document.getElementById('successSound').play().catch(e => console.error(e));
+            // Crea el efecto de chispas en la posición del panel y lo elimina de la escena
+            createSparksEffect(panel.position);
+            scene.remove(panel);
             alert("¡Correcto!");
           } else {
             alert("Incorrecto. Inténtalo de nuevo.");
           }
-          // Tras unos segundos se regenera la pregunta y se reinicia la comprobación
+          // Después de 2 segundos se regenera la pregunta y se vuelven a crear los paneles
           setTimeout(() => {
             generateQuestion();
             createAnswerObjects();
