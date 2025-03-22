@@ -480,7 +480,7 @@
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(button.position);
-              // Ocultar el botón (para dar efecto de desaparición)
+              // Ocultar el botón (efecto de desaparición)
               button.visible = false;
               setTimeout(() => {
                 if (button === exitButtonMesh) {
@@ -545,29 +545,24 @@
         return new THREE.Mesh(geom, mat);
       }
       
-      // Crear botón "Salir" y posicionarlo a la izquierda con y = -0.2
+      // Crear botón "Salir" y posicionarlo a la izquierda con y = -0.4
       exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, -0.2, -1);
+      exitButtonMesh.position.set(-0.5, -0.4, -1);
       scene.add(exitButtonMesh);
       
-      // Crear botón "Reiniciar" y posicionarlo a la derecha con y = -0.2
+      // Crear botón "Reiniciar" y posicionarlo a la derecha con y = -0.4
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, -0.2, -1);
+      restartButtonMesh.position.set(0.5, -0.4, -1);
       scene.add(restartButtonMesh);
     }
     
-    // Función para salir de la sesión AR (se intenta terminar la sesión, o se recarga la página)
+    // Función para salir: se recarga la página (volver al menú inicial)
     function exitGame() {
-      const session = renderer.xr.getSession();
-      if (session) {
-        session.end();
-      } else {
-        location.reload();
-      }
+      location.reload();
     }
     
     // Función para reiniciar el juego sin recargar la página:
-    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, el tiempo y el score.
+    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
     function restartGame() {
       // Eliminar elementos finales
       if(finalMessageMesh) scene.remove(finalMessageMesh);
@@ -579,7 +574,12 @@
       wrongCount = 0;
       gameStartTime = performance.now();
       gameOver = false;
+      
+      // Limpiar paneles de respuestas anteriores
       answers = [];
+      
+      // Recrear paneles de respuesta
+      createAnswerObjects(selectedNumAnswers, true);
       
       // Recrear pregunta, cuenta atrás y score
       generateQuestion();
