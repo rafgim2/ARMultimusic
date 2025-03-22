@@ -21,9 +21,8 @@
       text-align: center;
       z-index: 10;
     }
-    /* La imagen que reemplaza al título se ajusta con un ancho máximo y un margen inferior */
-    #overlay img {
-      max-width: 50%;
+    #overlay h1 {
+      font-size: 48px;
       margin-bottom: 10px;
     }
     #overlay a {
@@ -43,34 +42,15 @@
       font-size: 16px;
     }
     #overlay .respuestas-container select {
-      font-size: 16px;
-    }
-    
-    /* Ajustes para orientación landscape */
-    @media (orientation: landscape) {
-      /* Reducir el tamaño del overlay con escala */
-      #overlay {
-        transform: scale(0.8);
-      }
-      /* Reducir tamaños de algunos elementos para que quepan en pantalla */
-      #overlay img { max-width: 60%; }
-      #overlay a { font-size: 16px; }
-      #overlay .respuestas-container label,
-      #overlay .respuestas-container select { font-size: 14px; }
-      /* Ajustar el canvas para que se adapte a la pantalla */
-      canvas { 
-        width: 100vw !important;
-        height: 100vh !important;
-        object-fit: contain;
-      }
+      font-size: 24px;
     }
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error, timer, beep -->
+  <!-- Audios: acierto, error, timer y beep -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer2.wav" preload="auto"></audio>
+  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
@@ -111,7 +91,7 @@
     // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar la reproducción del beep (se reproducirá solo una vez cuando falten 10 segundos)
+    // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -167,11 +147,11 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Creación del overlay inicial con imagen en lugar del título
+      // Crear overlay inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
-        '<img src="armult.png" alt="AR MULTIMUSIC">' +
+        '<h1>AR MULTIMUSIC</h1>' +
         '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
         '<div class="respuestas-container">' +
           '<label for="numAnswers">Respuestas:</label>' +
@@ -185,9 +165,9 @@
             '<option value="10">10</option>' +
           '</select>' +
         '</div>';
-      // Crear el botón AR y modificar sus estilos
+      // Crear el botón AR y modificar sus estilos para fondo verde y texto blanco.
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
-      // Eliminar el botón de su contenedor original si ya se agregó
+      // Eliminar el botón de su contenedor original (si ya fue añadido a body)
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
       }
@@ -195,7 +175,7 @@
       arButton.style.color = 'white';
       arButton.style.fontSize = '16px';
       arButton.style.marginTop = '10px';
-      // Insertar el botón justo debajo del contenedor de respuestas
+      // Insertar el botón justo debajo del contenedor de respuestas:
       overlay.appendChild(arButton);
       
       document.body.appendChild(overlay);
@@ -263,6 +243,7 @@
       );
       countdownTexture.needsUpdate = true;
       
+      // Reproducir el beep solo UNA vez cuando falten 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
