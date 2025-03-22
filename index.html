@@ -32,8 +32,9 @@
   </style>
 </head>
 <body>
-  <!-- Audio para efectos -->
-  <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+  <!-- Audio para efectos de acierto y error -->
+  <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
+  <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -51,7 +52,6 @@
     // Variable global para guardar el número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado en un canvas
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -104,7 +104,7 @@
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR se guarda el número de respuestas seleccionado y se elimina el overlay
+      // Al iniciar la sesión AR se guarda el número de respuestas y se elimina el overlay
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
@@ -163,7 +163,6 @@
       }
     }
     
-    // La función ahora recibe el número total de respuestas a generar
     function createAnswerObjects(numAnswers) {
       // Elimina paneles anteriores
       answers.forEach(panel => scene.remove(panel));
@@ -178,8 +177,7 @@
       const answersArray = [correctAnswer, ...wrongAnswers];
       answersArray.sort(() => Math.random() - 0.5);
       
-      // Define el arco de distribución según la cantidad de respuestas:
-      // Para 4 respuestas usamos 60° (π/3), para 10 respuestas 180° (π)
+      // Define el arco de distribución según la cantidad de respuestas
       const minArc = Math.PI / 3; // 60° en radianes
       const maxArc = Math.PI;     // 180° en radianes
       let arcAngle;
@@ -188,6 +186,7 @@
       } else if (numAnswers >= 10) {
         arcAngle = maxArc;
       } else {
+        // Interpolación lineal entre 60° y 180°
         arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
       }
       const angleStart = -arcAngle / 2;
@@ -220,7 +219,7 @@
         const geometry = new THREE.PlaneGeometry(0.15, 0.15);
         const mesh = new THREE.Mesh(geometry, material);
         
-        // Distribuye uniformemente los paneles en el arco definido
+        // Distribuye uniformemente los paneles en el arco
         const angle = angleStart + (angleEnd - angleStart) * (index / (numAnswers - 1));
         const x = radius * Math.sin(angle);
         const z = -radius * Math.cos(angle);
@@ -315,6 +314,7 @@
         interactionPoints.push(cameraPos);
       }
       
+      // Detección de colisión
       for (let panel of answers) {
         const panelPos = new THREE.Vector3();
         panel.getWorldPosition(panelPos);
@@ -322,29 +322,57 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
+            
+            // Correcto
             if (panel.userData.answer === correctAnswer) {
               document.getElementById('successSound').play().catch(e => console.error(e));
               createSparksEffect(panel.position);
+              // Opcional: Eliminar el panel correcto
               scene.remove(panel);
+              
+              // Tras 2 segundos, nueva pregunta
+              setTimeout(() => {
+                generateQuestion();
+                createAnswerObjects(selectedNumAnswers);
+                hasCollided = false;
+              }, 2000);
+            
+            // Incorrecto
+            } else {
+              document.getElementById('errorSound').play().catch(e => console.error(e));
+              
+              // Poner todas las respuestas en rojo
+              answers.forEach(a => a.material.color.set(0xff0000));
+              
+              // Revertir a color blanco tras 0.5 segundos
+              setTimeout(() => {
+                answers.forEach(a => a.material.color.set(0xffffff));
+              }, 500);
+              
+              // Tras 2 segundos, nueva pregunta
+              setTimeout(() => {
+                generateQuestion();
+                createAnswerObjects(selectedNumAnswers);
+                hasCollided = false;
+              }, 2000);
             }
-            setTimeout(() => {
-              generateQuestion();
-              // Se usa la variable global selectedNumAnswers para regenerar las respuestas
-              createAnswerObjects(selectedNumAnswers);
-              hasCollided = false;
-            }, 2000);
-            return;
+            
+            return; // Procesa solo una colisión a la vez
           }
         }
       }
     }
     
+    // Desbloqueo de audio en móviles
     window.addEventListener('touchstart', function unlockAudio() {
-      const audioEl = document.getElementById('successSound');
-      audioEl.play().then(() => {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-      }).catch(e => console.error(e));
+      const successEl = document.getElementById('successSound');
+      const errorEl = document.getElementById('errorSound');
+      [successEl, errorEl].forEach(audioEl => {
+        audioEl.play().then(() => {
+          audioEl.pause();
+          audioEl.currentTime = 0;
+        }).catch(e => console.error(e));
+      });
     }, { once: true });
     
     init();
