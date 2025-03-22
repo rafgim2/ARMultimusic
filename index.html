@@ -36,12 +36,10 @@
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
-  <!-- Audio para pitido corto en los últimos 10 segundos -->
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    // Si no es móvil, se solicita además hand-tracking
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
@@ -65,24 +63,21 @@
     let gameOver = false;
     
     // Mallas en AR:
-    // - countdownMesh: cuenta atrás  
-    // - scoreMesh: score (aciertos/fallos)
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
     // Botones de fin de juego y mensaje final
     let exitButtonMesh = null, restartButtonMesh = null, finalMessageMesh = null;
     
-    // Número de respuestas seleccionado (global)
+    // Número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
-    // Variable global para almacenar la posición y orientación originales de cada panel
+    // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar el beep de los últimos 10 segundos
-    let lastBeepSecond = -1;
+    // Variable para controlar la reproducción del beep (solo una vez)
+    let beepPlayed = false;
     
-    // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -98,7 +93,6 @@
       ctx.fill();
     }
     
-    // Actualiza la textura de un panel de respuesta según su valor
     function updateAnswerPanel(mesh, value) {
       const canvas = document.createElement('canvas');
       canvas.width = 256;
@@ -137,7 +131,6 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Overlay del menú inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
@@ -157,14 +150,13 @@
       document.body.appendChild(overlay);
       
       renderer.xr.addEventListener('sessionstart', () => {
-        const sel = document.getElementById('numAnswers');
-        selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles (posición fija)
+        selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+        createAnswerObjects(selectedNumAnswers, true);
         overlay.remove();
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Configurar el timer para loop y reproducirlo
+        // Configurar el timer en loop y reproducirlo
         const timerSound = document.getElementById('timerSound');
         timerSound.loop = true;
         timerSound.play().catch(e => console.error(e));
@@ -177,7 +169,6 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.50, -0.9)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -192,7 +183,6 @@
       scene.add(countdownMesh);
     }
     
-    // Crea la malla de score en AR, posicionada en (0, 0.65, -0.9)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -206,12 +196,10 @@
       scene.add(scoreMesh);
     }
     
-    // Actualiza la cuenta atrás y devuelve el tiempo restante (en segundos)
     function updateCountdown() {
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
       const seconds = Math.floor(remaining);
-      // En los últimos 10 segundos, el color es rojo; de lo contrario blanco
       let timeColor = (remaining <= 10) ? "red" : "#FFFFFF";
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
       countdownCtx.fillStyle = timeColor;
@@ -225,18 +213,17 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Si estamos en los últimos 10 segundos, reproducir el beep una vez por cada segundo
-      if (remaining <= 10 && seconds !== lastBeepSecond) {
-        lastBeepSecond = seconds;
+      // Reproducir el beep solo una vez cuando remaining <= 10
+      if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
         beepSound.play().catch(e => console.error(e));
+        beepPlayed = true;
       }
       
       return remaining;
     }
     
-    // Actualiza el score en AR (texto a 24px)
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
@@ -252,13 +239,14 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
-      // Forzar recreación de la malla de la pregunta
       if(questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
       }
       updateQuestionPanel();
       updateAnswerObjects();
+      // Reiniciar el flag del beep para la nueva pregunta
+      beepPlayed = false;
     }
     
     function updateQuestionPanel() {
@@ -285,15 +273,11 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posición original de la pregunta: (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
     
-    // Crea o actualiza los paneles de respuesta.
-    // Se define el ángulo mínimo como 80° (1.39626 rad) y el máximo como 180° (Math.PI).
-    // Si ya se han creado previamente, se usan las transformaciones originales.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626; // 80° en radianes
@@ -562,7 +546,6 @@
     
     function endGame() {
       gameOver = true;
-      // Detener el timer para que no siga sonando
       const timerSound = document.getElementById('timerSound');
       timerSound.pause();
       timerSound.currentTime = 0;
@@ -590,11 +573,9 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
-      // Cuadro de resultados en posición original: (0,0,-0.8)
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
-      // Los botones finales se colocan encima del cuadro de resultados, es decir, a la misma distancia (z = -0.8) y con y mayor (por ejemplo, 0.4)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -622,14 +603,10 @@
       scene.add(restartButtonMesh);
     }
     
-    // Salir recargando la página (volver al menú inicial)
     function exitGame() {
       location.reload();
     }
     
-    // Reiniciar el juego sin recargar la página:
-    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
-    // Se reusan las transformaciones originales de las respuestas para no reorientarlas.
     function restartGame() {
       if(finalMessageMesh) scene.remove(finalMessageMesh);
       if(exitButtonMesh) scene.remove(exitButtonMesh);
