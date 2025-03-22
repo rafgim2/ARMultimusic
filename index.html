@@ -9,7 +9,7 @@
   </style>
 </head>
 <body>
-  <!-- Solo se utiliza audio, ya que la pregunta se muestra en AR -->
+  <!-- Se utiliza audio para el sonido de acierto -->
   <audio id="successSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
   
   <script type="module">
@@ -27,22 +27,6 @@
     
     // Array para almacenar sistemas de partículas (chispas)
     const sparksSystems = [];
-    
-    // Función auxiliar para dibujar un rectángulo redondeado en el canvas (ahora solo se usa para crear el fondo)
-    function drawRoundedRect(ctx, x, y, width, height, radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-      ctx.fill();
-    }
     
     init();
     generateQuestion();
@@ -70,7 +54,7 @@
       
       // Detectar si es móvil usando el user agent
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      // En móviles se solicita solo 'hit-test'; en otros se añade 'hand-tracking'
+      // En móviles, se solicita solo 'hit-test'; en otros, se solicita también 'hand-tracking'
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures }));
       
@@ -78,7 +62,7 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
       
-      // Crea o actualiza el panel de la pregunta en AR (ahora con bloque 3D)
+      // Crea o actualiza el panel de la pregunta en AR
       updateQuestionPanel();
       
       window.addEventListener('resize', onWindowResize, false);
@@ -99,7 +83,7 @@
       updateQuestionPanel();
     }
     
-    // Crea o actualiza el panel de la pregunta usando un canvas, y se aplica al bloque 3D
+    // Crea o actualiza el panel de la pregunta usando un canvas
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -107,11 +91,11 @@
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Fondo azul con bordes redondeados
-      ctx.fillStyle = "#007BFF"; // azul
-      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      // Fondo azul
+      ctx.fillStyle = "#007BFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Dibuja el texto en blanco
+      // Dibujo del texto en blanco
       ctx.font = 'Bold 48px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
@@ -120,15 +104,28 @@
       
       const texture = new THREE.CanvasTexture(canvas);
       
+      // Usamos RoundedBoxGeometry para crear un bloque con profundidad y bordes redondeados
+      const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 5, 0.02);
+      // Creamos un arreglo de materiales: la cara frontal mostrará el canvas; las demás, un color azul
+      // El orden de las caras es: [Right, Left, Top, Bottom, Front, Back]
+      const frontMaterial = new THREE.MeshBasicMaterial({ map: texture });
+      const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x007BFF });
+      const materials = [
+        sideMaterial,
+        sideMaterial,
+        sideMaterial,
+        sideMaterial,
+        frontMaterial,
+        sideMaterial
+      ];
+      
       if (questionMesh) {
-        questionMesh.material.map = texture;
+        // Si ya existe, actualizamos el material de la cara frontal
+        questionMesh.material[4] = frontMaterial;
         questionMesh.material.needsUpdate = true;
       } else {
-        // Crea un bloque 3D para la pregunta: 0.6 x 0.15 x 0.05 m
-        const geometry = new RoundedBoxGeometry(0.6, 0.15, 0.05, 5, 0.02);
-        const material = new THREE.MeshBasicMaterial({ map: texture });
-        questionMesh = new THREE.Mesh(geometry, material);
-        // Posiciónalo en AR: en el centro, 0.3 m de altura y 0.8 m frente al usuario
+        questionMesh = new THREE.Mesh(geometry, materials);
+        // Posicionar el bloque de la pregunta: 0.3 m de altura y 0.8 m frente al usuario
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -136,7 +133,6 @@
     
     // Crea los bloques de respuesta (uno correcto y tres incorrectos)
     function createAnswerObjects() {
-      // Elimina bloques previos
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
@@ -160,11 +156,11 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Fondo azul con bordes redondeados
+        // Fondo azul
         ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Dibuja el número en tamaño 75px, en blanco
+        // Texto en blanco, tamaño 75px
         ctx.font = 'Bold 75px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -172,10 +168,20 @@
         ctx.fillText(num, canvas.width / 2, canvas.height / 2);
         
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({ map: texture });
-        // Crea un bloque 3D para la respuesta: 0.15 x 0.15 x 0.05 m
+        // Usamos RoundedBoxGeometry para crear un bloque con profundidad (0.15 x 0.15 x 0.05 m)
         const geometry = new RoundedBoxGeometry(0.15, 0.15, 0.05, 5, 0.02);
-        const mesh = new THREE.Mesh(geometry, material);
+        // Arreglo de materiales para el bloque: la cara frontal con el canvas y el resto en azul.
+        const frontMaterial = new THREE.MeshBasicMaterial({ map: texture });
+        const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x007BFF });
+        const materials = [
+          sideMaterial,
+          sideMaterial,
+          sideMaterial,
+          sideMaterial,
+          frontMaterial,
+          sideMaterial
+        ];
+        const mesh = new THREE.Mesh(geometry, materials);
         
         let angle = total === 1 ? 0 : angleStart + (angleEnd - angleStart) * (index / (total - 1));
         const x = radius * Math.sin(angle);
@@ -223,17 +229,17 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualiza los sistemas de chispas
+      // Actualiza sistemas de chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
         system.lastUpdate = currentTime;
-        const positions = system.points.geometry.attributes.position.array;
+        const posArray = system.points.geometry.attributes.position.array;
         for (let j = 0; j < system.velocities.length; j++) {
-          positions[j * 3] += system.velocities[j].x * dt;
-          positions[j * 3 + 1] += system.velocities[j].y * dt;
-          positions[j * 3 + 2] += system.velocities[j].z * dt;
+          posArray[j * 3] += system.velocities[j].x * dt;
+          posArray[j * 3 + 1] += system.velocities[j].y * dt;
+          posArray[j * 3 + 2] += system.velocities[j].z * dt;
         }
         system.points.geometry.attributes.position.needsUpdate = true;
         if (currentTime - system.startTime > 2000) {
@@ -242,7 +248,7 @@
         }
       }
       
-      // Recopila los puntos de interacción: usa datos de ambas manos (si están disponibles) o la cámara en móviles
+      // Recopila los puntos de interacción: se usan los datos de ambas manos si están disponibles; si no, se usa la cámara
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
