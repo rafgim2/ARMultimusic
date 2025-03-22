@@ -11,7 +11,8 @@
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: orange;
+      border: 3px solid blue;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -22,8 +23,13 @@
     }
     #overlay h1 {
       font-size: 48px;
+      margin-bottom: 10px;
+    }
+    #overlay a {
+      font-size: 20px;
       margin-bottom: 20px;
-      text-align: center;
+      color: blue;
+      text-decoration: none;
     }
     #overlay label, #overlay select {
       font-size: 24px;
@@ -135,6 +141,7 @@
       overlay.id = 'overlay';
       overlay.innerHTML =
         '<h1>AR MULTIMUSIC</h1>' +
+        '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
         '<label for="numAnswers">Número de respuestas:</label>' +
         '<select id="numAnswers">' +
           '<option value="4">4</option>' +
@@ -156,7 +163,6 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Configurar el timer en loop y reproducirlo
         const timerSound = document.getElementById('timerSound');
         timerSound.loop = true;
         timerSound.play().catch(e => console.error(e));
@@ -213,7 +219,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir el beep solo una vez cuando remaining <= 10
+      // Reproducir beep solo UNA vez cuando falten 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -245,7 +251,6 @@
       }
       updateQuestionPanel();
       updateAnswerObjects();
-      // Reiniciar el flag del beep para la nueva pregunta
       beepPlayed = false;
     }
     
@@ -280,8 +285,8 @@
     
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
-        const minArc = 1.39626; // 80° en radianes
-        const maxArc = Math.PI;  // 180° en radianes
+        const minArc = 1.39626;
+        const maxArc = Math.PI;
         let arcAngle;
         if (numAnswers <= 4) {
           arcAngle = minArc;
