@@ -584,41 +584,43 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
+      // CUADRO FINAL DE RESULTADOS: Reducido a la mitad
       const gameOverCanvas = document.createElement('canvas');
-      gameOverCanvas.width = 512;
-      gameOverCanvas.height = 256;
+      gameOverCanvas.width = 256;    // Ancho reducido a la mitad
+      gameOverCanvas.height = 128;   // Alto reducido a la mitad
       const gameOverCtx = gameOverCanvas.getContext('2d');
       gameOverCtx.fillStyle = "#007BFF";
-      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 20);
+      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10); // Radio reducido a la mitad (20 -> 10)
       gameOverCtx.fillStyle = "#FFFFFF";
-      gameOverCtx.font = "Bold 48px Arial";
+      gameOverCtx.font = "Bold 24px Arial"; // Fuente reducida a la mitad
       gameOverCtx.textAlign = "center";
       gameOverCtx.textBaseline = "middle";
-      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 60);
-      gameOverCtx.font = "Bold 36px Arial";
-      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 130);
-      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 190);
+      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 30);
+      gameOverCtx.font = "Bold 18px Arial"; // Fuente reducida a la mitad
+      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 65);
+      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 100);
       const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
-      const geometry = new THREE.PlaneGeometry(1.0, 0.5);
+      const geometry = new THREE.PlaneGeometry(0.5, 0.25); // Geometría reducida a la mitad
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
+      // Botones: Salir y Reiniciar
       function createButton(text) {
         const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 128;
+        canvas.width = 128;   // Reducido a la mitad
+        canvas.height = 64;   // Reducido a la mitad
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10); // Radio reducido
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "Bold 36px Arial";
+        ctx.font = "Bold 18px Arial"; // Fuente reducida a la mitad
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(text, canvas.width / 2, canvas.height / 2);
         const texture = new THREE.CanvasTexture(canvas);
-        const geom = new THREE.PlaneGeometry(0.4, 0.2);
+        const geom = new THREE.PlaneGeometry(0.2, 0.1); // Geometría reducida a la mitad
         const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         return new THREE.Mesh(geom, mat);
       }
