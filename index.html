@@ -232,7 +232,7 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
-      // Eliminamos la malla antigua (si existe) para forzar la creación nueva
+      // Eliminar la malla antigua para forzar su recreación
       if(questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
@@ -265,8 +265,8 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Posición más cercana al usuario: z = -0.5 en lugar de -0.8
-        questionMesh.position.set(0, 0.3, -0.5);
+        // Volvemos a la posición original: (0, 0.3, -0.8)
+        questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
     }
@@ -578,7 +578,7 @@
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
-      finalMessageMesh.position.set(0, 0, -0.5);
+      finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
       // Función auxiliar para crear botones con estilo similar
@@ -600,7 +600,7 @@
         return new THREE.Mesh(geom, mat);
       }
       
-      // Botones más cerca del usuario: z = -0.5
+      // Mantener la posición original de la malla final, pero acercar los botones
       exitButtonMesh = createButton("Salir");
       exitButtonMesh.position.set(-0.5, -0.4, -0.5);
       scene.add(exitButtonMesh);
@@ -623,7 +623,7 @@
       if(exitButtonMesh) scene.remove(exitButtonMesh);
       if(restartButtonMesh) scene.remove(restartButtonMesh);
       
-      // Remover la malla de la pregunta antigua y forzar su recreación
+      // Remover la malla de la pregunta antigua para forzar su recreación
       if (questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
@@ -640,7 +640,6 @@
       // Usar las transformaciones originales sin recalcular (se mantienen del primer inicio)
       createAnswerObjects(selectedNumAnswers, true);
       
-      // Generar una nueva pregunta (se crea la malla de la pregunta con nueva textura y posición)
       generateQuestion();
       startCountdown();
       createScoreDisplay();
