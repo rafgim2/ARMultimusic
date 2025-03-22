@@ -32,7 +32,7 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error y timer (fondo, sin loop) -->
+  <!-- Audios: acierto, error y timer (sin loop para timer) -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
@@ -59,15 +59,16 @@
     const gameDuration = 60; // segundos
     let gameOver = false;
     
-    // Malla de cuenta atrás en AR
+    // Mallas en AR:
+    // - countdownMesh: cuenta atrás  
+    // - scoreMesh: score (aciertos y fallos)
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
-    // Malla de score en AR (aciertos y fallos)
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
-    // Función para dibujar un rectángulo redondeado en un canvas
+    // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -83,7 +84,7 @@
       ctx.fill();
     }
     
-    // Actualiza el contenido de un panel de respuesta (su textura y valor)
+    // Actualiza la textura de un panel de respuesta según su valor
     function updateAnswerPanel(mesh, value) {
       const canvas = document.createElement('canvas');
       canvas.width = 256;
@@ -125,7 +126,7 @@
       // Overlay del menú inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
-      overlay.innerHTML = 
+      overlay.innerHTML =
         '<h1>AR MULTIMUSIC</h1>' +
         '<label for="numAnswers">Número de respuestas:</label>' +
         '<select id="numAnswers">' +
@@ -141,10 +142,11 @@
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
+      // Al iniciar la sesión AR, se configura el número de respuestas, se crean los paneles y se inician los elementos AR
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        createAnswerObjects(selectedNumAnswers, true); // Crear paneles una única vez con posiciones fijas
+        createAnswerObjects(selectedNumAnswers, true); // se crean los paneles (posición fija)
         overlay.remove();
         generateQuestion();
         startCountdown();
@@ -161,7 +163,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Malla para la cuenta atrás en AR, posicionada en (0, 0.45, -0.8)
+    // Crea la malla para la cuenta atrás en AR, posicionada en (0, 0.45, -0.9)
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -172,11 +174,11 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      countdownMesh.position.set(0, 0.45, -0.8);
+      countdownMesh.position.set(0, 0.45, -0.9);
       scene.add(countdownMesh);
     }
     
-    // Malla de score en AR, posicionada en (0, 0.60, -0.8)
+    // Crea la malla de score en AR, posicionada en (0, 0.60, -1.0)
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256;
@@ -186,7 +188,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
-      scoreMesh.position.set(0, 0.60, -0.8);
+      scoreMesh.position.set(0, 0.60, -1.0);
       scene.add(scoreMesh);
     }
     
@@ -255,7 +257,7 @@
       }
     }
     
-    // Crea o actualiza los paneles de respuesta
+    // Crea o actualiza los paneles de respuesta. Si initialCreation es true, se calculan posiciones y se crean; si no, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = Math.PI / 3; // 60° en radianes
@@ -396,6 +398,7 @@
       let interactionPoints = [];
       if (session && xrFrame) {
         for (const inputSource of session.inputSources) {
+          // Aquí se mantiene el código de hand tracking para gafas
           if (inputSource.hand) {
             const indexTip = inputSource.hand.get('index-finger-tip');
             if (indexTip) {
@@ -458,7 +461,7 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Crear malla de "Fin del Juego" en AR con recuadro azul (estilo similar a las respuestas)
+      // Crear malla de "Fin del Juego" en AR con recuadro azul (estilo de las respuestas)
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
@@ -481,7 +484,7 @@
       scene.add(gameOverMesh);
     }
     
-    // Desbloqueo de audio en móviles (solo success y error)
+    // En el desbloqueo de audio, solo se desbloquean success y error
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
