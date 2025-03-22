@@ -36,6 +36,7 @@
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
+  <!-- Audio para pitido corto (se reproducirá UNA sola vez al bajar a 10 seg.) -->
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
@@ -75,7 +76,7 @@
     // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
     
-    // Variable para controlar la reproducción del beep (solo una vez)
+    // Variable para controlar que el beep se reproduzca solo UNA vez cuando queden 10 seg.
     let beepPlayed = false;
     
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -156,9 +157,11 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Configurar el timer en loop y reproducirlo
+        // Configuramos el timer para reproducirse una sola vez
         const timerSound = document.getElementById('timerSound');
-        timerSound.loop = true;
+        // Quita loop para que solo suene una vez
+        timerSound.loop = false;
+        timerSound.currentTime = 0;
         timerSound.play().catch(e => console.error(e));
       });
     }
@@ -213,7 +216,7 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir el beep solo una vez cuando remaining <= 10
+      // Si faltan 10 segundos o menos y aún no se ha reproducido el beep, reproducirlo UNA sola vez
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -273,6 +276,7 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
+        // Posición original de la pregunta: (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -576,6 +580,7 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
+      // Los botones finales se colocan encima del cuadro de resultados y a la misma distancia del usuario (z = -0.8)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -633,7 +638,7 @@
       
       const timerSound = document.getElementById('timerSound');
       timerSound.currentTime = 0;
-      timerSound.loop = true;
+      // No se configura loop para que solo se reproduzca una vez
       timerSound.play().catch(e => console.error(e));
     }
     
