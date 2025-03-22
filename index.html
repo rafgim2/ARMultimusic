@@ -68,8 +68,8 @@
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
-    // Botones de fin de juego
-    let exitButtonMesh = null, restartButtonMesh = null;
+    // Botones de fin de juego y mensaje final
+    let exitButtonMesh = null, restartButtonMesh = null, finalMessageMesh = null;
     
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
@@ -441,7 +441,7 @@
                 const successClone = successSound.cloneNode();
                 successClone.play().catch(e => console.error(e));
                 createSparksEffect(panel.position);
-                // Ocultar la pregunta y respuestas durante 500ms antes de mostrar la siguiente
+                // Ocultar la pregunta y respuestas durante 1 segundo antes de mostrar la siguiente
                 if(questionMesh) questionMesh.visible = false;
                 answers.forEach(a => a.visible = false);
                 setTimeout(() => {
@@ -449,7 +449,7 @@
                   if(questionMesh) questionMesh.visible = true;
                   answers.forEach(a => a.visible = true);
                   hasCollided = false;
-                }, 500);
+                }, 1000);
               } else {
                 wrongCount++;
                 const errorSound = document.getElementById('errorSound');
@@ -466,7 +466,7 @@
           }
         }
       } else {
-        // Si el juego ha terminado, detectar colisión con los botones
+        // Si el juego ha terminado, detectar colisión con los botones finales
         [exitButtonMesh, restartButtonMesh].forEach(button => {
           if (!button) return;
           const buttonPos = new THREE.Vector3();
@@ -475,12 +475,21 @@
             const distance = point.distanceTo(buttonPos);
             if (distance < collisionThreshold && !hasCollided) {
               hasCollided = true;
-              if (button === exitButtonMesh) {
-                exitGame();
-              } else if (button === restartButtonMesh) {
-                restartGame();
-              }
-              setTimeout(() => { hasCollided = false; }, 500);
+              // Reproducir sonido de acierto y generar chispas en la posición del botón
+              const successSound = document.getElementById('successSound');
+              const successClone = successSound.cloneNode();
+              successClone.play().catch(e => console.error(e));
+              createSparksEffect(button.position);
+              // Ocultar el botón (para dar efecto de desaparición)
+              button.visible = false;
+              setTimeout(() => {
+                if (button === exitButtonMesh) {
+                  exitGame();
+                } else if (button === restartButtonMesh) {
+                  restartGame();
+                }
+                hasCollided = false;
+              }, 1000);
               break;
             }
           }
@@ -513,9 +522,9 @@
       const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
       const geometry = new THREE.PlaneGeometry(1.0, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
-      const gameOverMesh = new THREE.Mesh(geometry, material);
-      gameOverMesh.position.set(0, 0, -1);
-      scene.add(gameOverMesh);
+      finalMessageMesh = new THREE.Mesh(geometry, material);
+      finalMessageMesh.position.set(0, 0, -1);
+      scene.add(finalMessageMesh);
       
       // Función auxiliar para crear botones con estilo similar
       function createButton(text) {
@@ -538,12 +547,12 @@
       
       // Crear botón "Salir" y posicionarlo a la izquierda con y = -0.2
       exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, -0.4, -1);
+      exitButtonMesh.position.set(-0.5, -0.2, -1);
       scene.add(exitButtonMesh);
       
       // Crear botón "Reiniciar" y posicionarlo a la derecha con y = -0.2
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, -0.4, -1);
+      restartButtonMesh.position.set(0.5, -0.2, -1);
       scene.add(restartButtonMesh);
     }
     
@@ -557,9 +566,25 @@
       }
     }
     
-    // Función para reiniciar el juego (recarga la página)
+    // Función para reiniciar el juego sin recargar la página:
+    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, el tiempo y el score.
     function restartGame() {
-      location.reload();
+      // Eliminar elementos finales
+      if(finalMessageMesh) scene.remove(finalMessageMesh);
+      if(exitButtonMesh) scene.remove(exitButtonMesh);
+      if(restartButtonMesh) scene.remove(restartButtonMesh);
+      
+      // Reiniciar variables de juego
+      correctCount = 0;
+      wrongCount = 0;
+      gameStartTime = performance.now();
+      gameOver = false;
+      answers = [];
+      
+      // Recrear pregunta, cuenta atrás y score
+      generateQuestion();
+      startCountdown();
+      createScoreDisplay();
     }
     
     // Desbloqueo de audio en móviles (solo success y error)
