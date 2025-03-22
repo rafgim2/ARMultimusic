@@ -74,6 +74,9 @@
     // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
+    // Variable global para almacenar la posición y orientación originales de cada panel
+    let originalAnswerTransforms = null;
+    
     // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
@@ -263,8 +266,9 @@
       }
     }
     
-    // Crea o actualiza los paneles de respuesta.  
-    // Se define el ángulo mínimo como 80° (1.39626 rad) y el máximo como 180° (Math.PI)
+    // Crea o actualiza los paneles de respuesta.
+    // Se define el ángulo mínimo como 80° (1.39626 rad) y el máximo como 180° (Math.PI).
+    // Si ya se han creado previamente, se usa la transformación original para no recalcular la orientación.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626; // 80° en radianes
@@ -281,48 +285,99 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        const wrongAnswers = new Set();
-        while (wrongAnswers.size < (numAnswers - 1)) {
-          let wrong = Math.floor(Math.random() * 100) + 1;
-          if (wrong !== correctAnswer) wrongAnswers.add(wrong);
-        }
-        const answersArray = [correctAnswer, ...wrongAnswers];
-        answersArray.sort(() => Math.random() - 0.5);
-        
-        for (let i = 0; i < numAnswers; i++) {
-          const canvas = document.createElement('canvas');
-          canvas.width = 256;
-          canvas.height = 256;
-          const ctx = canvas.getContext('2d');
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-          ctx.shadowBlur = 10;
-          ctx.fillStyle = "#007BFF";
-          drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
-          ctx.shadowBlur = 0;
-          ctx.font = 'Bold 75px Arial';
-          ctx.fillStyle = "#FFFFFF";
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
-          const texture = new THREE.CanvasTexture(canvas);
-          const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-          const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-          const mesh = new THREE.Mesh(geometry, material);
-          const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
-          const x = radius * Math.sin(angle);
-          const z = -radius * Math.cos(angle);
-          mesh.position.set(x, 0, z);
-          // Se mantiene la misma orientación (lookAt) de la primera creación
-          const cameraWorldPos = new THREE.Vector3();
-          camera.getWorldPosition(cameraWorldPos);
-          const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
-          mesh.lookAt(lookAtPos);
-          mesh.userData.answer = answersArray[i];
-          answers.push(mesh);
-          scene.add(mesh);
+        // Si aún no se han almacenado las transformaciones originales, se calculan y se guardan.
+        if (originalAnswerTransforms === null) {
+          originalAnswerTransforms = [];
+          for (let i = 0; i < numAnswers; i++) {
+            // Crear panel
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "#007BFF";
+            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+            ctx.shadowBlur = 0;
+            ctx.font = 'Bold 75px Arial';
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Se asume que el orden de los valores aún se baraja
+            // Se crea un array con la respuesta correcta y respuestas falsas
+            // Para simplificar, se utiliza la misma fórmula que antes:
+            const wrongAnswers = new Set();
+            while (wrongAnswers.size < (numAnswers - 1)) {
+              let wrong = Math.floor(Math.random() * 100) + 1;
+              if (wrong !== correctAnswer) wrongAnswers.add(wrong);
+            }
+            const answersArray = [correctAnswer, ...wrongAnswers];
+            answersArray.sort(() => Math.random() - 0.5);
+            ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+            const mesh = new THREE.Mesh(geometry, material);
+            // Calcular posición usando el ángulo
+            const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
+            const x = radius * Math.sin(angle);
+            const z = -radius * Math.cos(angle);
+            mesh.position.set(x, 0, z);
+            // Calcular orientación basada en la posición actual de la cámara
+            const cameraWorldPos = new THREE.Vector3();
+            camera.getWorldPosition(cameraWorldPos);
+            const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
+            mesh.lookAt(lookAtPos);
+            mesh.userData.answer = answersArray[i];
+            answers.push(mesh);
+            scene.add(mesh);
+            // Almacenar la posición y rotación original
+            originalAnswerTransforms.push({
+              position: mesh.position.clone(),
+              rotation: mesh.rotation.clone()
+            });
+          }
+        } else {
+          // Si ya se han almacenado, se crean los paneles usando las transformaciones originales
+          for (let i = 0; i < numAnswers; i++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "#007BFF";
+            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+            ctx.shadowBlur = 0;
+            ctx.font = 'Bold 75px Arial';
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Se genera nuevamente el array de respuestas (sin alterar el orden original)
+            const wrongAnswers = new Set();
+            while (wrongAnswers.size < (numAnswers - 1)) {
+              let wrong = Math.floor(Math.random() * 100) + 1;
+              if (wrong !== correctAnswer) wrongAnswers.add(wrong);
+            }
+            const answersArray = [correctAnswer, ...wrongAnswers];
+            answersArray.sort(() => Math.random() - 0.5);
+            ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+            const mesh = new THREE.Mesh(geometry, material);
+            // Usar la posición y rotación almacenadas originalmente
+            mesh.position.copy(originalAnswerTransforms[i].position);
+            mesh.rotation.copy(originalAnswerTransforms[i].rotation);
+            mesh.userData.answer = answersArray[i];
+            answers.push(mesh);
+            scene.add(mesh);
+          }
         }
       } else {
+        // Actualización de paneles sin recrearlos (solo actualiza la textura)
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -402,7 +457,7 @@
         }
       }
       
-      // Obtener puntos de interacción (hand tracking o la posición de la cámara)
+      // Obtener puntos de interacción (hand tracking o posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -428,7 +483,7 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Si el juego sigue activo, se detecta colisión con los paneles de respuesta
+      // Si el juego sigue activo, detectar colisión con los paneles de respuesta
       if (!gameOver) {
         for (let panel of answers) {
           const panelPos = new THREE.Vector3();
@@ -565,6 +620,7 @@
     
     // Función para reiniciar el juego sin recargar la página:
     // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
+    // Aquí, en lugar de recalcular la orientación, se reusan las transformaciones originales.
     function restartGame() {
       // Eliminar elementos finales
       if(finalMessageMesh) scene.remove(finalMessageMesh);
@@ -577,13 +633,15 @@
       gameStartTime = performance.now();
       gameOver = false;
       
-      // Limpiar paneles de respuestas anteriores
+      // Eliminar los paneles antiguos
+      answers.forEach(panel => scene.remove(panel));
       answers = [];
       
-      // Recrear paneles de respuesta sin cambiar la orientación (se usarán los mismos parámetros que en la primera creación)
+      // Recrear los paneles usando las transformaciones originales (no recalculando su orientación)
+      // Si originalAnswerTransforms ya existe, usamos esos valores; de lo contrario se crea por primera vez.
       createAnswerObjects(selectedNumAnswers, true);
       
-      // Recrear pregunta, cuenta atrás y score
+      // Recrear la pregunta, cuenta atrás y score
       generateQuestion();
       startCountdown();
       createScoreDisplay();
