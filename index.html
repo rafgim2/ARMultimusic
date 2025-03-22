@@ -272,6 +272,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
+      // Actualizamos los sistemas de chispas sin bloquear la siguiente pregunta
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -284,12 +285,14 @@
           positions[j * 3 + 2] += system.velocities[j].z * dt;
         }
         system.points.geometry.attributes.position.needsUpdate = true;
+        // Aunque las partículas duren 2 s, no bloqueamos el cambio de pregunta
         if (currentTime - system.startTime > 2000) {
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
         }
       }
       
+      // Obtenemos puntos de interacción (mano o cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -331,12 +334,12 @@
               // Elimina el panel correcto
               scene.remove(panel);
               
-              // Espera 2 segundos y genera nueva pregunta
+              // Espera solo 0.5s y pasa a la siguiente pregunta
               setTimeout(() => {
                 generateQuestion();
                 createAnswerObjects(selectedNumAnswers);
                 hasCollided = false;
-              }, 2000);
+              }, 500);
             
             // Si es la respuesta incorrecta
             } else {
