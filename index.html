@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    /* Estilos para el overlay inicial centrado */
+    /* Overlay del menú inicial */
     #overlay {
       position: absolute;
       top: 0; left: 0;
@@ -29,6 +29,32 @@
       font-size: 24px;
       margin-bottom: 20px;
     }
+    /* Score overlay (HTML) en la esquina superior derecha */
+    #scoreOverlay {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 20px;
+      border-radius: 5px;
+      z-index: 11;
+    }
+    /* Game Over overlay */
+    #gameOverOverlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 30px 40px;
+      font-size: 28px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 12;
+    }
   </style>
 </head>
 <body>
@@ -49,7 +75,19 @@
     const collisionThreshold = 0.2;
     const sparksSystems = [];
     
-    // Variable global para guardar el número de respuestas seleccionado
+    // Contadores
+    let correctCount = 0;
+    let wrongCount = 0;
+    
+    // Variables para el tiempo de juego
+    let gameStartTime = 0;
+    const gameDuration = 60; // segundos
+    let gameOver = false;
+    
+    // Para la cuenta atrás en AR (malla y su canvas)
+    let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
+    
+    // Número de respuestas seleccionado (global)
     let selectedNumAnswers = 4;
     
     // Función para dibujar un rectángulo redondeado en un canvas
@@ -107,7 +145,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crea el overlay con título, selector y botón AR (generado automáticamente)
+      // Crea el overlay del menú inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML = 
@@ -126,13 +164,21 @@
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR se guarda el número de respuestas y se crean los paneles de respuesta una sola vez
+      // Crea el overlay de score (HTML) en la esquina superior derecha
+      const scoreOverlay = document.createElement('div');
+      scoreOverlay.id = 'scoreOverlay';
+      scoreOverlay.innerHTML = "Aciertos: 0 | Fallos: 0";
+      document.body.appendChild(scoreOverlay);
+      
+      // Al iniciar la sesión AR se guarda el número de respuestas, se crean los paneles y se inicia el juego
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
+        // Crear los paneles de respuesta (distribución fija al inicio)
         createAnswerObjects(selectedNumAnswers, true);
         overlay.remove();
         generateQuestion();
+        startCountdown();
       });
     }
     
@@ -140,6 +186,38 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    
+    function startCountdown() {
+      gameStartTime = performance.now();
+      // Crear la malla para la cuenta atrás (solo una vez)
+      countdownCanvas = document.createElement('canvas');
+      countdownCanvas.width = 256;
+      countdownCanvas.height = 128;
+      countdownCtx = countdownCanvas.getContext('2d');
+      countdownTexture = new THREE.CanvasTexture(countdownCanvas);
+      const geometry = new THREE.PlaneGeometry(0.6, 0.3);
+      const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
+      countdownMesh = new THREE.Mesh(geometry, material);
+      // Posicionar la cuenta atrás encima de la pregunta (por ejemplo, 0.3m más arriba)
+      countdownMesh.position.set(0, 0.8, -0.8);
+      scene.add(countdownMesh);
+    }
+    
+    function updateCountdown() {
+      const elapsed = (performance.now() - gameStartTime) / 1000;
+      const remaining = Math.max(0, gameDuration - elapsed);
+      // Formatear a MM:SS (aunque dura solo 1 minuto)
+      const seconds = Math.floor(remaining);
+      const display = seconds < 10 ? "00:0" + seconds : "00:" + seconds;
+      countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
+      countdownCtx.fillStyle = "#FFFFFF";
+      countdownCtx.font = "Bold 64px Arial";
+      countdownCtx.textAlign = "center";
+      countdownCtx.textBaseline = "middle";
+      countdownCtx.fillText(display, countdownCanvas.width / 2, countdownCanvas.height / 2);
+      countdownTexture.needsUpdate = true;
+      return remaining;
     }
     
     function generateQuestion() {
@@ -180,7 +258,7 @@
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se calculan las posiciones y se crean; de lo contrario, solo se actualizan los valores.
+    // Crea los paneles de respuesta. Si initialCreation es true, se calculan sus posiciones y se crean; si no, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         // Calcular la distribución (una sola vez)
@@ -198,7 +276,7 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        // Generar valores de respuesta para la primera pregunta
+        // Generar los valores para la primera pregunta
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswers - 1)) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -207,7 +285,7 @@
         const answersArray = [correctAnswer, ...wrongAnswers];
         answersArray.sort(() => Math.random() - 0.5);
         
-        // Crear cada panel y fijar su posición y rotación
+        // Crear cada panel y fijar su posición/rotación
         for (let i = 0; i < numAnswers; i++) {
           const canvas = document.createElement('canvas');
           canvas.width = 256;
@@ -232,7 +310,7 @@
           const x = radius * Math.sin(angle);
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
-          // Orientar el panel hacia la cámara (tomada al inicio)
+          // Orientar el panel hacia la cámara (usando la posición inicial de la cámara)
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -242,7 +320,7 @@
           scene.add(mesh);
         }
       } else {
-        // Si no es la creación inicial, actualizar solo los valores de cada panel
+        // Solo actualizar los valores sin cambiar posición
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -257,7 +335,7 @@
       }
     }
     
-    // Actualiza los paneles de respuesta con nuevos valores (sin modificar posición)
+    // Actualiza los paneles de respuesta con nuevos valores
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -296,6 +374,7 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
+      // Actualizar partículas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -314,6 +393,16 @@
         }
       }
       
+      // Actualizar cuenta atrás y score (si el juego no ha finalizado)
+      if (!gameOver) {
+        const remaining = updateCountdown();
+        document.getElementById('scoreOverlay').innerHTML = `Aciertos: ${correctCount} | Fallos: ${wrongCount}`;
+        if (remaining <= 0) {
+          endGame();
+        }
+      }
+      
+      // Obtener puntos de interacción (hand tracking o cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -347,20 +436,21 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
-            // Si es la respuesta correcta, reproducir sonido y crear partículas
+            // Respuesta correcta
             if (panel.userData.answer === correctAnswer) {
+              correctCount++;
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              // En lugar de remover el panel, simplemente actualizamos todo en 0.5s
+              // Actualizar la pregunta en 0.5 s (sin remover panel)
               setTimeout(() => {
                 generateQuestion();
-                updateAnswerObjects();
                 hasCollided = false;
               }, 500);
             } else {
-              // Respuesta incorrecta: reproducir sonido y poner respuestas en rojo
+              // Respuesta incorrecta
+              wrongCount++;
               const errorSound = document.getElementById('errorSound');
               const errorClone = errorSound.cloneNode();
               errorClone.play().catch(e => console.error(e));
@@ -370,10 +460,26 @@
                 hasCollided = false;
               }, 500);
             }
-            return; // Solo procesar una colisión a la vez
+            return; // Procesa solo una colisión a la vez
           }
         }
       }
+    }
+    
+    function endGame() {
+      gameOver = true;
+      // Ocultar objetos AR
+      if (questionMesh) scene.remove(questionMesh);
+      if (countdownMesh) scene.remove(countdownMesh);
+      answers.forEach(panel => scene.remove(panel));
+      // Eliminar score overlay
+      const scoreOverlay = document.getElementById('scoreOverlay');
+      if (scoreOverlay) scoreOverlay.remove();
+      // Crear overlay de Game Over
+      const gameOverOverlay = document.createElement('div');
+      gameOverOverlay.id = 'gameOverOverlay';
+      gameOverOverlay.innerHTML = `<h1>Fin del Juego</h1><p>Aciertos: ${correctCount}</p><p>Fallos: ${wrongCount}</p>`;
+      document.body.appendChild(gameOverOverlay);
     }
     
     // Desbloqueo de audio en móviles
