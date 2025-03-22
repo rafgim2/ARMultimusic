@@ -42,14 +42,14 @@
     
     let camera, scene, renderer;
     let correctAnswer;
-    let answers = []; // Array de paneles de respuesta (se crean una sola vez)
+    let answers = []; // Se crean una sola vez los paneles de respuesta
     let hasCollided = false;
     let questionMesh = null;
     let questionText = "";
     const collisionThreshold = 0.2;
     const sparksSystems = [];
     
-    // Número de respuestas seleccionado (global)
+    // Variable global para guardar el número de respuestas seleccionado
     let selectedNumAnswers = 4;
     
     // Función para dibujar un rectángulo redondeado en un canvas
@@ -68,7 +68,7 @@
       ctx.fill();
     }
     
-    // Función para actualizar el panel de respuesta (su textura y userData)
+    // Actualiza el contenido de un panel de respuesta (su textura y valor)
     function updateAnswerPanel(mesh, value) {
       const canvas = document.createElement('canvas');
       canvas.width = 256;
@@ -126,11 +126,10 @@
       overlay.appendChild(arButton);
       document.body.appendChild(overlay);
       
-      // Al iniciar la sesión AR se guarda el número de respuestas y se crea la distribución una única vez
+      // Al iniciar la sesión AR se guarda el número de respuestas y se crean los paneles de respuesta una sola vez
       renderer.xr.addEventListener('sessionstart', () => {
         const sel = document.getElementById('numAnswers');
         selectedNumAnswers = sel ? parseInt(sel.value) : 4;
-        // Crear los paneles de respuesta solo la primera vez (con posiciones fijas)
         createAnswerObjects(selectedNumAnswers, true);
         overlay.remove();
         generateQuestion();
@@ -181,11 +180,10 @@
       }
     }
     
-    // Crea los paneles de respuesta. Si initialCreation es true, se generan y se calculan sus posiciones y rotaciones (una sola vez)
+    // Crea los paneles de respuesta. Si initialCreation es true, se calculan las posiciones y se crean; de lo contrario, solo se actualizan los valores.
     function createAnswerObjects(numAnswers, initialCreation) {
-      // Calcular la distribución solo en la creación inicial
       if (initialCreation) {
-        // Definir el arco en función del número de respuestas
+        // Calcular la distribución (una sola vez)
         const minArc = Math.PI / 3; // 60° en radianes
         const maxArc = Math.PI;     // 180° en radianes
         let arcAngle;
@@ -200,7 +198,7 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        // Generar los valores de respuesta para la primera pregunta
+        // Generar valores de respuesta para la primera pregunta
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswers - 1)) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -209,7 +207,7 @@
         const answersArray = [correctAnswer, ...wrongAnswers];
         answersArray.sort(() => Math.random() - 0.5);
         
-        // Crear cada panel y fijar su posición/rotación
+        // Crear cada panel y fijar su posición y rotación
         for (let i = 0; i < numAnswers; i++) {
           const canvas = document.createElement('canvas');
           canvas.width = 256;
@@ -230,12 +228,11 @@
           const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
           const geometry = new THREE.PlaneGeometry(0.15, 0.15);
           const mesh = new THREE.Mesh(geometry, material);
-          // Posición fija según la distribución calculada al inicio
           const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
           const x = radius * Math.sin(angle);
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
-          // Orientar el panel hacia la cámara (tomada en el inicio)
+          // Orientar el panel hacia la cámara (tomada al inicio)
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -245,8 +242,8 @@
           scene.add(mesh);
         }
       } else {
-        // Si no es la creación inicial, no se recalculan posiciones: se actualizan los valores de respuesta.
-        const numAnswersExisting = selectedNumAnswers; // siempre igual al seleccionado
+        // Si no es la creación inicial, actualizar solo los valores de cada panel
+        const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -260,7 +257,7 @@
       }
     }
     
-    // Actualiza los paneles de respuesta con nuevos valores (sin recalcular posiciones)
+    // Actualiza los paneles de respuesta con nuevos valores (sin modificar posición)
     function updateAnswerObjects() {
       createAnswerObjects(selectedNumAnswers, false);
     }
@@ -299,7 +296,6 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
-      // Actualización de partículas (no bloquea el cambio de pregunta)
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -318,7 +314,6 @@
         }
       }
       
-      // Obtener puntos de interacción (hand tracking o cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -352,22 +347,20 @@
           const distance = point.distanceTo(panelPos);
           if (distance < collisionThreshold && !hasCollided) {
             hasCollided = true;
-            // Respuesta correcta
+            // Si es la respuesta correcta, reproducir sonido y crear partículas
             if (panel.userData.answer === correctAnswer) {
               const successSound = document.getElementById('successSound');
-              // Clonar el audio para permitir solapamiento
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
               createSparksEffect(panel.position);
-              scene.remove(panel);
-              // Pasar a la siguiente pregunta en 0.5 s
+              // En lugar de remover el panel, simplemente actualizamos todo en 0.5s
               setTimeout(() => {
                 generateQuestion();
                 updateAnswerObjects();
                 hasCollided = false;
               }, 500);
             } else {
-              // Respuesta incorrecta
+              // Respuesta incorrecta: reproducir sonido y poner respuestas en rojo
               const errorSound = document.getElementById('errorSound');
               const errorClone = errorSound.cloneNode();
               errorClone.play().catch(e => console.error(e));
@@ -377,7 +370,7 @@
                 hasCollided = false;
               }, 500);
             }
-            return;
+            return; // Solo procesar una colisión a la vez
           }
         }
       }
