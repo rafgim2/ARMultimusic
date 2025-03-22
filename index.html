@@ -32,10 +32,12 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error y timer (fondo, sin loop) -->
+  <!-- Audios: acierto, error, timer y beep -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer.wav" preload="auto"></audio>
+  <!-- Audio para pitido corto (beep) -->
+  <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -76,6 +78,9 @@
     
     // Variable global para almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
+    
+    // Variable para controlar pitidos en los últimos 10 segundos
+    let lastBeepSecond = -1;
     
     // Función para dibujar un rectángulo redondeado en un canvas (estilo de respuestas)
     function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -159,8 +164,9 @@
         generateQuestion();
         startCountdown();
         createScoreDisplay();
-        // Reproducir el sonido de fondo "timer" una sola vez
+        // Configurar el sonido del timer para que haga loop
         const timerSound = document.getElementById('timerSound');
+        timerSound.loop = true;
         timerSound.play().catch(e => console.error(e));
       });
     }
@@ -205,14 +211,27 @@
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
       const seconds = Math.floor(remaining);
-      const display = seconds < 10 ? "00:0" + seconds : "00:" + seconds;
+      // En los últimos 10 segundos, se usa color rojo
+      let timeColor = (remaining <= 10) ? "red" : "#FFFFFF";
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
-      countdownCtx.fillStyle = "#FFFFFF";
+      countdownCtx.fillStyle = timeColor;
       countdownCtx.font = "Bold 64px Arial";
       countdownCtx.textAlign = "center";
       countdownCtx.textBaseline = "middle";
-      countdownCtx.fillText(display, countdownCanvas.width / 2, countdownCanvas.height / 2);
+      countdownCtx.fillText(
+        seconds < 10 ? "00:0" + seconds : "00:" + seconds,
+        countdownCanvas.width / 2,
+        countdownCanvas.height / 2
+      );
       countdownTexture.needsUpdate = true;
+      
+      // Si estamos en los últimos 10 segundos, reproducir un pitido cada segundo
+      if (remaining <= 10 && seconds !== lastBeepSecond) {
+        lastBeepSecond = seconds;
+        const beepSound = document.getElementById('beepSound');
+        beepSound.play().catch(e => console.error(e));
+      }
+      
       return remaining;
     }
     
@@ -232,7 +251,7 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
-      // Eliminar la malla antigua para forzar su recreación
+      // Forzamos la recreación de la malla de la pregunta
       if(questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
@@ -265,7 +284,7 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.15);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
         questionMesh = new THREE.Mesh(geometry, material);
-        // Volvemos a la posición original: (0, 0.3, -0.8)
+        // Posición original de la pregunta: (0, 0.3, -0.8)
         questionMesh.position.set(0, 0.3, -0.8);
         scene.add(questionMesh);
       }
@@ -290,7 +309,6 @@
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
         
-        // Si aún no se han almacenado las transformaciones originales, se calculan y se guardan.
         if (originalAnswerTransforms === null) {
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
@@ -320,12 +338,10 @@
             const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
             const geometry = new THREE.PlaneGeometry(0.15, 0.15);
             const mesh = new THREE.Mesh(geometry, material);
-            // Calcular posición usando el ángulo
             const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
             const x = radius * Math.sin(angle);
             const z = -radius * Math.cos(angle);
             mesh.position.set(x, 0, z);
-            // Calcular orientación basada en la posición actual de la cámara
             const cameraWorldPos = new THREE.Vector3();
             camera.getWorldPosition(cameraWorldPos);
             const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -333,14 +349,12 @@
             mesh.userData.answer = answersArray[i];
             answers.push(mesh);
             scene.add(mesh);
-            // Almacenar la posición y rotación original
             originalAnswerTransforms.push({
               position: mesh.position.clone(),
               rotation: mesh.rotation.clone()
             });
           }
         } else {
-          // Usar las transformaciones originales almacenadas
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
             canvas.width = 256;
@@ -368,7 +382,6 @@
             const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
             const geometry = new THREE.PlaneGeometry(0.15, 0.15);
             const mesh = new THREE.Mesh(geometry, material);
-            // Usar la posición y rotación almacenadas originalmente
             mesh.position.copy(originalAnswerTransforms[i].position);
             mesh.rotation.copy(originalAnswerTransforms[i].rotation);
             mesh.userData.answer = answersArray[i];
@@ -377,7 +390,6 @@
           }
         }
       } else {
-        // Actualización de paneles sin recrearlos (solo se actualiza la textura)
         const numAnswersExisting = selectedNumAnswers;
         const wrongAnswers = new Set();
         while (wrongAnswers.size < (numAnswersExisting - 1)) {
@@ -431,7 +443,6 @@
       renderer.render(scene, camera);
       
       const currentTime = performance.now();
-      // Actualizar partículas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
@@ -457,7 +468,6 @@
         }
       }
       
-      // Obtener puntos de interacción (hand tracking o posición de la cámara)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -483,7 +493,6 @@
         interactionPoints.push(cameraPos);
       }
       
-      // Si el juego sigue activo, detectar colisión con los paneles de respuesta
       if (!gameOver) {
         for (let panel of answers) {
           const panelPos = new THREE.Vector3();
@@ -498,7 +507,6 @@
                 const successClone = successSound.cloneNode();
                 successClone.play().catch(e => console.error(e));
                 createSparksEffect(panel.position);
-                // Ocultar la pregunta y respuestas durante 1 segundo antes de mostrar la siguiente
                 if(questionMesh) questionMesh.visible = false;
                 answers.forEach(a => a.visible = false);
                 setTimeout(() => {
@@ -523,7 +531,6 @@
           }
         }
       } else {
-        // Si el juego ha terminado, detectar colisión con los botones finales
         [exitButtonMesh, restartButtonMesh].forEach(button => {
           if (!button) return;
           const buttonPos = new THREE.Vector3();
@@ -559,7 +566,6 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Mostrar mensaje de "Fin del Juego" con resumen de aciertos y fallos
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 512;
       gameOverCanvas.height = 256;
@@ -581,7 +587,6 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
-      // Función auxiliar para crear botones con estilo similar
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -600,7 +605,6 @@
         return new THREE.Mesh(geom, mat);
       }
       
-      // Mantener la posición original de la malla final, pero acercar los botones
       exitButtonMesh = createButton("Salir");
       exitButtonMesh.position.set(-0.5, -0.4, -0.5);
       scene.add(exitButtonMesh);
@@ -610,20 +614,15 @@
       scene.add(restartButtonMesh);
     }
     
-    // Función para salir: se recarga la página (volver al menú inicial)
     function exitGame() {
       location.reload();
     }
     
-    // Función para reiniciar el juego sin recargar la página:
-    // Se eliminan los elementos finales, se reinician las variables y se recrea la pregunta, cuenta atrás, score y paneles de respuesta.
-    // Se reusan las transformaciones originales de las respuestas para no reorientarlas.
     function restartGame() {
       if(finalMessageMesh) scene.remove(finalMessageMesh);
       if(exitButtonMesh) scene.remove(exitButtonMesh);
       if(restartButtonMesh) scene.remove(restartButtonMesh);
       
-      // Remover la malla de la pregunta antigua para forzar su recreación
       if (questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
@@ -637,7 +636,6 @@
       answers.forEach(panel => scene.remove(panel));
       answers = [];
       
-      // Usar las transformaciones originales sin recalcular (se mantienen del primer inicio)
       createAnswerObjects(selectedNumAnswers, true);
       
       generateQuestion();
