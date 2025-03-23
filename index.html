@@ -239,7 +239,7 @@
       scene.add(countdownMesh);
     }
     
-    // Función para crear la visualización del score
+    // Función para crear la visualización del score durante el juego
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256 * resolutionFactor;
@@ -584,7 +584,7 @@
           }
         }
       } else {
-        // En game over solo se mantiene el botón de reiniciar
+        // En game over, solo se mantiene el botón de Reiniciar
         if (restartButtonMesh) {
           const buttonPos = new THREE.Vector3();
           restartButtonMesh.getWorldPosition(buttonPos);
@@ -616,11 +616,11 @@
       
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
-      // Mantenemos el marcador (scoreMesh) para que se vea debajo del cual se coloca el botón
-      
+      // Se elimina el marcador que se muestra durante el juego
+      if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // Cuadro final de resultados con mayor resolución
+      // Cuadro final de resultados con mayor resolución (solo se muestra el cuadro azul)
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 256 * resolutionFactor;
       gameOverCanvas.height = 128 * resolutionFactor;
@@ -644,10 +644,9 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
-      // Solo se crea el botón de Reiniciar, posicionado debajo del marcador
+      // Se crea solo el botón de Reiniciar, posicionado un poco más arriba (por ejemplo, en y = -0.3)
       restartButtonMesh = createButton("Reiniciar");
-      // Posición: (0, -0.5, -0.8) para que aparezca debajo del score (scoreMesh está en (0, -0.2, -0.8))
-      restartButtonMesh.position.set(0, -0.5, -0.8);
+      restartButtonMesh.position.set(0, -0.3, -0.8);
       scene.add(restartButtonMesh);
     }
     
