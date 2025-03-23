@@ -93,8 +93,8 @@
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
     
-    // Botones de fin de juego y mensaje final
-    let exitButtonMesh = null, restartButtonMesh = null, finalMessageMesh = null;
+    // Botón final: se mantiene solo el de Reiniciar
+    let restartButtonMesh = null, finalMessageMesh = null;
     
     // Número de respuestas seleccionado
     let selectedNumAnswers = 4;
@@ -142,7 +142,6 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(value, canvas.width / 2, canvas.height / 2);
       const texture = new THREE.CanvasTexture(canvas);
-      // Ajuste de filtros para mejorar la nitidez
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
       mesh.material.map = texture;
@@ -585,10 +584,10 @@
           }
         }
       } else {
-        [exitButtonMesh, restartButtonMesh].forEach(button => {
-          if (!button) return;
+        // En game over solo se mantiene el botón de reiniciar
+        if (restartButtonMesh) {
           const buttonPos = new THREE.Vector3();
-          button.getWorldPosition(buttonPos);
+          restartButtonMesh.getWorldPosition(buttonPos);
           for (const point of interactionPoints) {
             const distance = point.distanceTo(buttonPos);
             if (distance < collisionThreshold && !hasCollided) {
@@ -596,20 +595,16 @@
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch(e => console.error(e));
-              createSparksEffect(button.position);
-              button.visible = false;
+              createSparksEffect(restartButtonMesh.position);
+              restartButtonMesh.visible = false;
               setTimeout(() => {
-                if (button === exitButtonMesh) {
-                  exitGame();
-                } else if (button === restartButtonMesh) {
-                  restartGame();
-                }
+                restartGame();
                 hasCollided = false;
               }, 1000);
               break;
             }
           }
-        });
+        }
       }
     }
     
@@ -621,10 +616,11 @@
       
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
-      if (scoreMesh) scene.remove(scoreMesh);
+      // Mantenemos el marcador (scoreMesh) para que se vea debajo del cual se coloca el botón
+      
       answers.forEach(panel => scene.remove(panel));
       
-      // CUADRO FINAL DE RESULTADOS con mayor resolución
+      // Cuadro final de resultados con mayor resolución
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 256 * resolutionFactor;
       gameOverCanvas.height = 128 * resolutionFactor;
@@ -648,43 +644,35 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
       
-      // Botones: Salir y Reiniciar
-      function createButton(text) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128 * resolutionFactor;
-        canvas.height = 64 * resolutionFactor;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const geom = new THREE.PlaneGeometry(0.2, 0.1);
-        const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        return new THREE.Mesh(geom, mat);
-      }
-      
-      exitButtonMesh = createButton("Salir");
-      exitButtonMesh.position.set(-0.5, 0, -0.8);
-      scene.add(exitButtonMesh);
-      
+      // Solo se crea el botón de Reiniciar, posicionado debajo del marcador
       restartButtonMesh = createButton("Reiniciar");
-      restartButtonMesh.position.set(0.5, 0, -0.8);
+      // Posición: (0, -0.5, -0.8) para que aparezca debajo del score (scoreMesh está en (0, -0.2, -0.8))
+      restartButtonMesh.position.set(0, -0.5, -0.8);
       scene.add(restartButtonMesh);
     }
     
-    function exitGame() {
-      location.reload();
+    function createButton(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128 * resolutionFactor;
+      canvas.height = 64 * resolutionFactor;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = "#007BFF";
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      const geom = new THREE.PlaneGeometry(0.2, 0.1);
+      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      return new THREE.Mesh(geom, mat);
     }
     
     function restartGame() {
       if(finalMessageMesh) scene.remove(finalMessageMesh);
-      if(exitButtonMesh) scene.remove(exitButtonMesh);
       if(restartButtonMesh) scene.remove(restartButtonMesh);
       
       if (questionMesh) {
