@@ -611,9 +611,10 @@
     
     function endGame() {
       gameOver = true;
-      const timerSound = document.getElementById('timerSound');
-      timerSound.pause();
-      timerSound.currentTime = 0;
+      // Se elimina la pausa del audio, de modo que éste siga hasta su final sin reiniciarse
+      // const timerSound = document.getElementById('timerSound');
+      // timerSound.pause();
+      // timerSound.currentTime = 0;
       
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
