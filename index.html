@@ -105,6 +105,10 @@
     // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
     let beepPlayed = false;
     
+    // Variables para controlar el inicio del countdown y audio al primer render con la escena lista
+    let gameReady = false;
+    let countdownStarted = false;
+    
     // Factor para mejorar la resolución de los canvas (multiplicador)
     const resolutionFactor = 4;
     
@@ -208,11 +212,10 @@
         createAnswerObjects(selectedNumAnswers, true);
         overlay.remove();
         generateQuestion();
-        startCountdown();
         createScoreDisplay();
-        const timerSound = document.getElementById('timerSound');
-        timerSound.loop = false; // No repetir el audio
-        timerSound.play().catch(e => console.error(e));
+        
+        // En lugar de iniciar el countdown y el audio aquí, se marca que el juego ya está listo.
+        gameReady = true;
       });
     }
     
@@ -494,6 +497,15 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
       
+      // Inicia el countdown y el audio en el primer frame en que la escena ya se mostró
+      if (gameReady && !countdownStarted) {
+        startCountdown();
+        const timerSound = document.getElementById('timerSound');
+        timerSound.loop = false; // No repetir el audio
+        timerSound.play().catch(e => console.error(e));
+        countdownStarted = true;
+      }
+      
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -692,7 +704,9 @@
       createAnswerObjects(selectedNumAnswers, true);
       
       generateQuestion();
-      startCountdown();
+      // Reiniciamos variables para iniciar el countdown y el audio de nuevo en el primer frame renderizado
+      countdownStarted = false;
+      gameReady = true;
       createScoreDisplay();
       
       const timerSound = document.getElementById('timerSound');
