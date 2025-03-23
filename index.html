@@ -610,9 +610,7 @@
     
     function endGame() {
       gameOver = true;
-      const timerSound = document.getElementById('timerSound');
-      timerSound.pause();
-      timerSound.currentTime = 0;
+     
       
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
