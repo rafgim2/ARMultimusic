@@ -105,6 +105,10 @@
     // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
     let beepPlayed = false;
     
+    // Factor para mejorar la resolución de los canvas (multiplicador)
+    const resolutionFactor = 2;
+    
+    // Función para dibujar un rectángulo redondeado
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -120,28 +124,33 @@
       ctx.fill();
     }
     
+    // Función para actualizar el panel de respuesta con mayor resolución
     function updateAnswerPanel(mesh, value) {
       const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 256;
+      canvas.width = 256 * resolutionFactor;
+      canvas.height = 256 * resolutionFactor;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 10 * resolutionFactor;
       ctx.fillStyle = "#007BFF";
-      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
       ctx.shadowBlur = 0;
-      ctx.font = 'Bold 75px Arial';
+      ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(value, canvas.width / 2, canvas.height / 2);
       const texture = new THREE.CanvasTexture(canvas);
+      // Ajuste de filtros para mejorar la nitidez
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       mesh.material.map = texture;
       mesh.material.needsUpdate = true;
       mesh.userData.answer = value;
     }
     
+    // Función para inicializar la escena AR
     function init() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -158,7 +167,7 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crear overlay inicial (se elimina el título y se reordena el contenido)
+      // Crear overlay inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
@@ -177,25 +186,20 @@
           '</select>' +
         '</div>';
       
-      // Crear el botón AR y modificar sus estilos para fondo verde y texto blanco.
+      // Crear el botón AR con estilos personalizados
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
-      // Eliminar el botón de su contenedor original (si ya fue añadido a body)
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
       }
       arButton.style.position = 'absolute';
-      arButton.style.top = '450px'; // ajusta el valor según lo que necesites
+      arButton.style.top = '450px';
       arButton.style.left = '100%';
       arButton.style.transform = 'translateX(0%)';
       arButton.style.width = '150px';
       arButton.style.height = '50px';
-      arButton.style.fontSize = '18px';
+      arButton.style.fontSize = '16px';
       arButton.style.backgroundColor = 'green';
       arButton.style.color = 'white';
-      arButton.style.fontSize = '16px';
-      arButton.style.marginbottom = '0px';
-      arButton.style.marginTop = '0px';
-      // Insertar el botón justo debajo del contenedor de respuestas e imagen:
       overlay.appendChild(arButton);
       
       document.body.appendChild(overlay);
@@ -219,13 +223,16 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
+    // Función para iniciar el conteo regresivo
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
-      countdownCanvas.width = 256;
-      countdownCanvas.height = 128;
+      countdownCanvas.width = 256 * resolutionFactor;
+      countdownCanvas.height = 128 * resolutionFactor;
       countdownCtx = countdownCanvas.getContext('2d');
       countdownTexture = new THREE.CanvasTexture(countdownCanvas);
+      countdownTexture.minFilter = THREE.LinearFilter;
+      countdownTexture.magFilter = THREE.LinearFilter;
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
@@ -233,12 +240,15 @@
       scene.add(countdownMesh);
     }
     
+    // Función para crear la visualización del score
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
-      scoreCanvas.width = 256;
-      scoreCanvas.height = 128;
+      scoreCanvas.width = 256 * resolutionFactor;
+      scoreCanvas.height = 128 * resolutionFactor;
       scoreCtx = scoreCanvas.getContext('2d');
       scoreTexture = new THREE.CanvasTexture(scoreCanvas);
+      scoreTexture.minFilter = THREE.LinearFilter;
+      scoreTexture.magFilter = THREE.LinearFilter;
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true });
       scoreMesh = new THREE.Mesh(geometry, material);
@@ -253,7 +263,7 @@
       let timeColor = (remaining <= 10) ? "red" : "#FFFFFF";
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
       countdownCtx.fillStyle = timeColor;
-      countdownCtx.font = "Bold 64px Arial";
+      countdownCtx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
       countdownCtx.textAlign = "center";
       countdownCtx.textBaseline = "middle";
       countdownCtx.fillText(
@@ -263,7 +273,6 @@
       );
       countdownTexture.needsUpdate = true;
       
-      // Reproducir el beep solo UNA vez cuando falten 10 segundos
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -277,7 +286,7 @@
     function updateScoreDisplay() {
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
-      scoreCtx.font = "Bold 24px Arial";
+      scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
       scoreCtx.textAlign = "center";
       scoreCtx.textBaseline = "middle";
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
@@ -298,23 +307,26 @@
       beepPlayed = false;
     }
     
+    // Función para actualizar el panel de pregunta con mayor resolución
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 128;
+      canvas.width = 512 * resolutionFactor;
+      canvas.height = 128 * resolutionFactor;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 10 * resolutionFactor;
       ctx.fillStyle = "#007BFF";
-      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
       ctx.shadowBlur = 0;
-      ctx.font = 'Bold 48px Arial';
+      ctx.font = 'Bold ' + (48 * resolutionFactor) + 'px Arial';
       ctx.fillStyle = "#FFFFFF";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(questionText, canvas.width / 2, canvas.height / 2);
       const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       if (questionMesh) {
         questionMesh.material.map = texture;
         questionMesh.material.needsUpdate = true;
@@ -327,6 +339,7 @@
       }
     }
     
+    // Función para crear los paneles de respuestas con mayor resolución
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626;
@@ -347,16 +360,16 @@
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
+            canvas.width = 256 * resolutionFactor;
+            canvas.height = 256 * resolutionFactor;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 10 * resolutionFactor;
             ctx.fillStyle = "#007BFF";
-            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
             ctx.shadowBlur = 0;
-            ctx.font = 'Bold 75px Arial';
+            ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
             ctx.fillStyle = "#FFFFFF";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -369,6 +382,8 @@
             answersArray.sort(() => Math.random() - 0.5);
             ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
             const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
             const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
             const geometry = new THREE.PlaneGeometry(0.15, 0.15);
             const mesh = new THREE.Mesh(geometry, material);
@@ -391,16 +406,16 @@
         } else {
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
+            canvas.width = 256 * resolutionFactor;
+            canvas.height = 256 * resolutionFactor;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 10 * resolutionFactor;
             ctx.fillStyle = "#007BFF";
-            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
             ctx.shadowBlur = 0;
-            ctx.font = 'Bold 75px Arial';
+            ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
             ctx.fillStyle = "#FFFFFF";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -413,6 +428,8 @@
             answersArray.sort(() => Math.random() - 0.5);
             ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
             const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
             const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
             const geometry = new THREE.PlaneGeometry(0.15, 0.15);
             const mesh = new THREE.Mesh(geometry, material);
@@ -442,6 +459,7 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
     
+    // Función para crear efecto de chispas
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -544,7 +562,7 @@
                 if(questionMesh) questionMesh.visible = false;
                 answers.forEach(a => a.visible = false);
                 setTimeout(() => {
-                  if (!gameOver) {  // Solo genera nueva pregunta si el juego no terminó
+                  if (!gameOver) {
                     generateQuestion();
                     if(questionMesh) questionMesh.visible = true;
                     answers.forEach(a => a.visible = true);
@@ -606,22 +624,24 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
       
-      // CUADRO FINAL DE RESULTADOS: Reducido a la mitad
+      // CUADRO FINAL DE RESULTADOS con mayor resolución
       const gameOverCanvas = document.createElement('canvas');
-      gameOverCanvas.width = 256;
-      gameOverCanvas.height = 128;
+      gameOverCanvas.width = 256 * resolutionFactor;
+      gameOverCanvas.height = 128 * resolutionFactor;
       const gameOverCtx = gameOverCanvas.getContext('2d');
       gameOverCtx.fillStyle = "#007BFF";
-      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10);
+      drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10 * resolutionFactor);
       gameOverCtx.fillStyle = "#FFFFFF";
-      gameOverCtx.font = "Bold 24px Arial";
+      gameOverCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
       gameOverCtx.textAlign = "center";
       gameOverCtx.textBaseline = "middle";
-      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 30);
-      gameOverCtx.font = "Bold 18px Arial";
-      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 65);
-      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 100);
+      gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 30 * resolutionFactor);
+      gameOverCtx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
+      gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 65 * resolutionFactor);
+      gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 100 * resolutionFactor);
       const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
+      gameOverTexture.minFilter = THREE.LinearFilter;
+      gameOverTexture.magFilter = THREE.LinearFilter;
       const geometry = new THREE.PlaneGeometry(0.5, 0.25);
       const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
       finalMessageMesh = new THREE.Mesh(geometry, material);
@@ -631,17 +651,19 @@
       // Botones: Salir y Reiniciar
       function createButton(text) {
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 64;
+        canvas.width = 128 * resolutionFactor;
+        canvas.height = 64 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10);
+        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "Bold 18px Arial";
+        ctx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(text, canvas.width / 2, canvas.height / 2);
         const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
         const geom = new THREE.PlaneGeometry(0.2, 0.1);
         const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         return new THREE.Mesh(geom, mat);
