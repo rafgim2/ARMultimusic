@@ -9,25 +9,22 @@
     /* Overlay del menú inicial */
     #overlay {
       position: absolute;
+padding-top: 100px; /* Ajusta este valor según necesites */
       top: 0; left: 0;
       width: 100%; height: 100%;
       background-color: orange;
       border: 0px solid blue;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
       color: #fff;
       text-align: center;
       z-index: 10;
     }
-    #overlay h1 {
-      font-size: 48px;
-      margin-top: -400px;
-      margin-bottom: 10px;
-    }
     #overlay a {
-      font-size: 20px;
+      font-size: 12px;
+margin-top:-10px;
       margin-bottom: 20px;
       color: blue;
       text-decoration: none;
@@ -40,10 +37,10 @@
       margin-bottom: 20px;
     }
     #overlay .respuestas-container label {
-      font-size: 16px;
+      font-size: 12px;
     }
     #overlay .respuestas-container select {
-      font-size: 16px;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -148,11 +145,11 @@
       
       window.addEventListener('resize', onWindowResize, false);
       
-      // Crear overlay inicial
+      // Crear overlay inicial (se elimina el título y se reordena el contenido)
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
-        '<h1>AR MULTIMUSIC</h1>' +
+        '<img src="armult.png" alt="AR Mult" style="max-width:13%; margin-bottom:20px; border-radius:20px;">' +
         '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
         '<div class="respuestas-container">' +
           '<label for="numAnswers">Respuestas:</label>' +
@@ -166,17 +163,26 @@
             '<option value="10">10</option>' +
           '</select>' +
         '</div>';
+      
       // Crear el botón AR y modificar sus estilos para fondo verde y texto blanco.
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
       // Eliminar el botón de su contenedor original (si ya fue añadido a body)
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
       }
+      arButton.style.position = 'absolute';
+      arButton.style.top = '350px'; // ajusta el valor según lo que necesites
+      arButton.style.left = '100%';
+      arButton.style.transform = 'translateX(0%)';
+      arButton.style.width = '150px';
+      arButton.style.height = '50px';
+      arButton.style.fontSize = '18px';
       arButton.style.backgroundColor = 'green';
       arButton.style.color = 'white';
       arButton.style.fontSize = '16px';
-      arButton.style.marginTop = '10px';
-      // Insertar el botón justo debajo del contenedor de respuestas:
+      arButton.style.marginbottom = '0px';
+      arButton.style.marginTop = '0px';
+      // Insertar el botón justo debajo del contenedor de respuestas e imagen:
       overlay.appendChild(arButton);
       
       document.body.appendChild(overlay);
