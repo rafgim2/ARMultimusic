@@ -61,7 +61,7 @@
   <!-- Audios: acierto, error, timer y beep -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer5.mp3" preload="auto"></audio>
+  <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer4.wav" preload="auto"></audio>
   <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
   
   <script type="module">
@@ -715,6 +715,7 @@
       timerSound.play().catch(e => console.error(e));
     }
     
+    // Listener para desbloquear el audio en dispositivos móviles (se ejecuta solo una vez)
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
@@ -725,6 +726,81 @@
         }).catch(e => console.error(e));
       });
     }, { once: true });
+    
+    // Listener adicional para detectar toques en la pantalla y procesar la respuesta
+    window.addEventListener('touchstart', function(event) {
+      // Solo aplicar en móviles
+      if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+      
+      // Convertir la posición del toque a coordenadas normalizadas (NDC)
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const mouseVector = new THREE.Vector2(x, y);
+      
+      // Crear el raycaster y configurarlo con la cámara
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseVector, camera);
+      
+      // Determinar qué objetos comprobar según si el juego está activo o finalizado
+      let objectsToIntersect = [];
+      if (!gameOver) {
+        objectsToIntersect = answers;
+      } else {
+        if (restartButtonMesh) {
+          objectsToIntersect = [restartButtonMesh];
+        }
+      }
+      
+      // Realizar la intersección
+      const intersects = raycaster.intersectObjects(objectsToIntersect);
+      
+      if (intersects.length > 0 && !hasCollided) {
+        const panel = intersects[0].object;
+        hasCollided = true;
+        if (!gameOver) {
+          // Verificar si la respuesta es correcta
+          if (panel.userData.answer === correctAnswer) {
+            correctCount++;
+            const successSound = document.getElementById('successSound');
+            const successClone = successSound.cloneNode();
+            successClone.play().catch(e => console.error(e));
+            createSparksEffect(panel.position);
+            if (questionMesh) questionMesh.visible = false;
+            answers.forEach(a => a.visible = false);
+            setTimeout(() => {
+              if (!gameOver) {
+                generateQuestion();
+                if (questionMesh) questionMesh.visible = true;
+                answers.forEach(a => a.visible = true);
+              }
+              hasCollided = false;
+            }, 1000);
+          } else {
+            wrongCount++;
+            const errorSound = document.getElementById('errorSound');
+            const errorClone = errorSound.cloneNode();
+            errorClone.play().catch(e => console.error(e));
+            answers.forEach(a => a.material.color.set(0xff0000));
+            setTimeout(() => {
+              answers.forEach(a => a.material.color.set(0xffffff));
+              hasCollided = false;
+            }, 500);
+          }
+        } else {
+          // En game over, se procesa el botón de Reiniciar
+          const successSound = document.getElementById('successSound');
+          const successClone = successSound.cloneNode();
+          successClone.play().catch(e => console.error(e));
+          createSparksEffect(panel.position);
+          panel.visible = false;
+          setTimeout(() => {
+            restartGame();
+            hasCollided = false;
+          }, 1000);
+        }
+      }
+    }, false);
     
     init();
     animate();
