@@ -211,7 +211,7 @@
         startCountdown();
         createScoreDisplay();
         const timerSound = document.getElementById('timerSound');
-        timerSound.loop = true;
+        timerSound.loop = false; // No repetir el audio
         timerSound.play().catch(e => console.error(e));
       });
     }
@@ -235,7 +235,8 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      countdownMesh.position.set(0, 0.50, -0.85);
+      // Posición ajustada a -0.8 en Z para estar más cerca del usuario
+      countdownMesh.position.set(0, 0.50, -0.8);
       scene.add(countdownMesh);
     }
     
@@ -610,7 +611,9 @@
     
     function endGame() {
       gameOver = true;
-     
+      const timerSound = document.getElementById('timerSound');
+      timerSound.pause();
+      timerSound.currentTime = 0;
       
       if (questionMesh) scene.remove(questionMesh);
       if (countdownMesh) scene.remove(countdownMesh);
@@ -693,7 +696,7 @@
       
       const timerSound = document.getElementById('timerSound');
       timerSound.currentTime = 0;
-      timerSound.loop = true;
+      timerSound.loop = false; // No repetir el audio
       timerSound.play().catch(e => console.error(e));
     }
     
