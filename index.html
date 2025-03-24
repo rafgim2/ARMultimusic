@@ -140,20 +140,26 @@
       return txt.value;
     }
     
-    // Función para traducir un texto de inglés a español usando LibreTranslate
+    // Función para traducir un texto de inglés a español usando LibreTranslate.
+    // En caso de error se devuelve el mismo texto (fallback).
     async function translateText(text) {
-      const response = await fetch("https://libretranslate.de/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          q: text,
-          source: "en",
-          target: "es",
-          format: "text"
-        })
-      });
-      const data = await response.json();
-      return data.translatedText;
+      try {
+        const response = await fetch("https://libretranslate.de/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: text,
+            source: "en",
+            target: "es",
+            format: "text"
+          })
+        });
+        const data = await response.json();
+        return data.translatedText;
+      } catch (err) {
+        console.error("Error en la traducción:", err);
+        return text;
+      }
     }
     
     // Función para inicializar la escena AR y el menú inicial
@@ -195,8 +201,7 @@
       
       document.body.appendChild(overlay);
       
-      // Listener para el botón de trivia: al pulsarlo se activa el modo trivia,
-      // se fija a 4 respuestas, se deshabilita el selector y el botón se vuelve verde.
+      // Al pulsar el botón "4º de primaria" se activa el modo trivia
       document.getElementById('triviaButton').addEventListener('click', function() {
         gameMode = "trivia";
         selectedNumAnswers = 4;
@@ -249,7 +254,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      countdownMesh.position.set(0, 0.50, -0.82);
+      countdownMesh.position.set(0, 0.50, -0.8);
       scene.add(countdownMesh);
     }
     
@@ -309,6 +314,7 @@
     async function generateQuestion() {
       if (gameMode === "trivia") {
         try {
+          // Se solicita 1 pregunta de la API (en inglés)
           const response = await fetch("https://opentdb.com/api.php?amount=1&category=9&difficulty=easy&type=multiple");
           const data = await response.json();
           if (data.response_code === 0 && data.results.length > 0) {
@@ -316,7 +322,7 @@
             const questionEn = result.question;
             const correctEn = result.correct_answer;
             const incorrectEn = result.incorrect_answers;
-            // Traducir cada parte al español
+            // Se traduce cada parte; en caso de error se usa el texto original
             const question = await translateText(questionEn);
             const correct = await translateText(correctEn);
             let incorrects = [];
@@ -335,7 +341,7 @@
             console.error("No se obtuvo pregunta de trivia");
           }
         } catch (err) {
-          console.error("Error al obtener o traducir la pregunta: ", err);
+          console.error("Error al obtener o traducir la pregunta:", err);
         }
       } else {
         // Modo multiplicación
@@ -343,17 +349,14 @@
         const b = Math.floor(Math.random() * 10) + 1;
         correctAnswer = a * b;
         questionText = `¿Cuánto es ${a} x ${b}?`;
-        if (questionMesh) {
-          scene.remove(questionMesh);
-          questionMesh = null;
-        }
+        if (questionMesh) { scene.remove(questionMesh); questionMesh = null; }
         updateQuestionPanel();
         updateAnswerObjects();
         beepPlayed = false;
       }
     }
     
-    // Actualiza el panel de pregunta con tamaños dinámicos (para trivia se adapta al largo del texto)
+    // Actualiza el panel de pregunta con tamaños dinámicos según el largo del texto
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -361,7 +364,7 @@
       ctx.font = 'Bold ' + fontSize + 'px Arial';
       let textWidth = ctx.measureText(questionText).width;
       let padding = 80 * resolutionFactor;
-      // Se usa un ancho base pero se aumenta si el texto es muy largo
+      // Se define un ancho base pero se aumenta si el texto es muy largo
       let baseWidth = 1024 * resolutionFactor;
       let canvasWidth = Math.max(baseWidth, textWidth + padding);
       let canvasHeight = 256 * resolutionFactor;
@@ -381,7 +384,7 @@
       const texture = new THREE.CanvasTexture(canvas);
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
-      // Convertir dimensiones de píxeles a unidades AR (se usa un factor arbitrario)
+      // Se utiliza un factor para convertir píxeles a unidades en AR
       const scaleFactor = resolutionFactor * 256;
       let geometry;
       if (gameMode === "trivia") {
@@ -399,19 +402,15 @@
       }
     }
     
-    // Función para crear los paneles de respuesta en modo multiplicación (arco) – sin cambios
+    // Función para crear los paneles de respuesta en modo multiplicación (arco)
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626;
         const maxArc = Math.PI;
         let arcAngle;
-        if (numAnswers <= 4) {
-          arcAngle = minArc;
-        } else if (numAnswers >= 10) {
-          arcAngle = maxArc;
-        } else {
-          arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
-        }
+        if (numAnswers <= 4) { arcAngle = minArc; }
+        else if (numAnswers >= 10) { arcAngle = maxArc; }
+        else { arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc); }
         const angleStart = -arcAngle / 2;
         const angleEnd = arcAngle / 2;
         const radius = 0.8;
@@ -471,12 +470,11 @@
       }
     }
     
-    // Función para crear los paneles de respuesta en modo trivia (dispuestos en 2 filas de 2 columnas y con tamaño dinámico)
+    // Función para crear los paneles de respuesta en modo trivia (dispuestos en 2 filas x 2 columnas)
     function createTriviaAnswerObjects(answersArray) {
       // Eliminar respuestas anteriores
       answers.forEach(panel => scene.remove(panel));
       answers = [];
-      
       if (answersArray.length === 4) {
         // Posiciones fijas para una cuadrícula 2x2
         const positions = [
@@ -513,7 +511,7 @@
           texture.minFilter = THREE.LinearFilter;
           texture.magFilter = THREE.LinearFilter;
           const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-          // Para determinar el tamaño en el espacio AR, usamos un factor de conversión (p.ej., dividir los píxeles por resolutionFactor*256)
+          // Se define un factor de escala para convertir píxeles a unidades AR
           const scaleFactor = resolutionFactor * 256;
           const geometry = new THREE.PlaneGeometry(canvas.width / scaleFactor, canvas.height / scaleFactor);
           const mesh = new THREE.Mesh(geometry, material);
@@ -526,7 +524,7 @@
           scene.add(mesh);
         }
       } else {
-        // Si por alguna razón no son 4, se usa el método de arco (fallback)
+        // Fallback en caso de que no sean 4 respuestas
         createAnswerObjects(answersArray.length, true);
       }
     }
@@ -760,9 +758,7 @@
       gameOver = false;
       answers.forEach(panel => scene.remove(panel));
       answers = [];
-      if (gameMode === "multiplication") {
-        createAnswerObjects(selectedNumAnswers, true);
-      }
+      if (gameMode === "multiplication") { createAnswerObjects(selectedNumAnswers, true); }
       generateQuestion();
       countdownStarted = false;
       gameReady = true;
@@ -773,7 +769,7 @@
       timerSound.play().catch(e => console.error(e));
     }
     
-    // Listener para desbloquear el audio en dispositivos móviles (solo una vez)
+    // Listener para desbloquear el audio en móviles (una sola vez)
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
@@ -785,7 +781,7 @@
       });
     }, { once: true });
     
-    // Listener adicional para detectar toques en la pantalla y procesar respuestas
+    // Listener adicional para detectar toques y procesar respuestas
     window.addEventListener('touchstart', function(event) {
       if (!/Mobi|Android/i.test(navigator.userAgent)) return;
       const touch = event.touches[0];
@@ -795,11 +791,8 @@
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouseVector, camera);
       let objectsToIntersect = [];
-      if (!gameOver) {
-        objectsToIntersect = answers;
-      } else {
-        if (restartButtonMesh) { objectsToIntersect = [restartButtonMesh]; }
-      }
+      if (!gameOver) { objectsToIntersect = answers; }
+      else { if (restartButtonMesh) { objectsToIntersect = [restartButtonMesh]; } }
       const intersects = raycaster.intersectObjects(objectsToIntersect);
       if (intersects.length > 0 && !hasCollided) {
         const panel = intersects[0].object;
