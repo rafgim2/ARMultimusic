@@ -2,20 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>AR MULTIMUSIC</title>
+  <title>AR MULTIMUSIC - Chispas Azules</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
     /* Overlay del menú inicial */
     #overlay {
       position: absolute;
-      padding-top: 100px; /* Ajusta este valor según necesites */
+      padding-top: 100px;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       background-color: orange;
-      border: 0px solid blue;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
@@ -31,7 +30,6 @@
       color: blue;
       text-decoration: none;
     }
-    /* Contenedor para el selector de respuestas */
     #overlay .respuestas-container {
       display: flex;
       align-items: center;
@@ -45,13 +43,11 @@
     #overlay .respuestas-container select {
       font-size: 14px;
     }
-    /* Estilos responsivos para la imagen */
     #overlay img {
       border-radius: 20px;
       max-width: 15%;
     }
     @media (orientation: portrait) {
-      /* En móviles verticales se usa un tamaño mayor */
       #overlay img {
         max-width: 70%;
       }
@@ -59,7 +55,7 @@
   </style>
 </head>
 <body>
-  <!-- Audios: acierto, error, timer y beep -->
+  <!-- Audios -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer5.mp3" preload="auto"></audio>
@@ -68,7 +64,6 @@
 
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-    // Si no es móvil, se solicita además hand-tracking
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
@@ -95,26 +90,21 @@
     let countdownMesh = null, countdownCanvas = null, countdownCtx = null, countdownTexture = null;
     let scoreMesh = null, scoreCanvas = null, scoreCtx = null, scoreTexture = null;
 
-    // Botón final: se mantiene solo el de Reiniciar
+    // Botón final: Reiniciar
     let restartButtonMesh = null, finalMessageMesh = null;
 
-    // Número de respuestas seleccionado
+    // Número de respuestas seleccionado y transformaciones
     let selectedNumAnswers = 4;
-
-    // Almacenar la posición y orientación originales de cada panel
     let originalAnswerTransforms = null;
 
-    // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
+    // Control de beep y estado del juego
     let beepPlayed = false;
-
-    // Variables para controlar el inicio del countdown y audio al primer render con la escena lista
     let gameReady = false;
     let countdownStarted = false;
 
-    // Factor para mejorar la resolución de los canvas (multiplicador)
+    // Factor para mejorar la resolución de los canvas
     const resolutionFactor = 4;
 
-    // Función para dibujar un rectángulo redondeado
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -130,7 +120,6 @@
       ctx.fill();
     }
 
-    // Función para actualizar el panel de respuesta con mayor resolución
     function updateAnswerPanel(mesh, value) {
       const canvas = document.createElement('canvas');
       canvas.width = 256 * resolutionFactor;
@@ -155,11 +144,9 @@
       mesh.userData.answer = value;
     }
 
-    // Función para inicializar la escena AR
     function init() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -172,7 +159,6 @@
 
       window.addEventListener('resize', onWindowResize, false);
 
-      // Crear overlay inicial
       const overlay = document.createElement('div');
       overlay.id = 'overlay';
       overlay.innerHTML =
@@ -191,7 +177,6 @@
           '</select>' +
         '</div>';
 
-      // Crear el botón AR con estilos personalizados
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
@@ -215,8 +200,6 @@
         overlay.remove();
         generateQuestion();
         createScoreDisplay();
-
-        // Se marca que el juego ya está listo para iniciar el countdown y el audio
         gameReady = true;
       });
     }
@@ -227,7 +210,6 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // Función para iniciar el conteo regresivo
     function startCountdown() {
       gameStartTime = performance.now();
       countdownCanvas = document.createElement('canvas');
@@ -240,12 +222,10 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posición ajustada para estar cerca del usuario
       countdownMesh.position.set(0, 0.50, -0.82);
       scene.add(countdownMesh);
     }
 
-    // Función para crear la visualización del score durante el juego
     function createScoreDisplay() {
       scoreCanvas = document.createElement('canvas');
       scoreCanvas.width = 256 * resolutionFactor;
@@ -277,14 +257,12 @@
         countdownCanvas.height / 2
       );
       countdownTexture.needsUpdate = true;
-
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
         beepSound.play().catch(e => console.error(e));
         beepPlayed = true;
       }
-
       return remaining;
     }
 
@@ -303,7 +281,7 @@
       const b = Math.floor(Math.random() * 10) + 1;
       correctAnswer = a * b;
       questionText = `¿Cuánto es ${a} x ${b}?`;
-      if(questionMesh) {
+      if (questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
       }
@@ -312,7 +290,6 @@
       beepPlayed = false;
     }
 
-    // Función para actualizar el panel de pregunta con mayor resolución
     function updateQuestionPanel() {
       const canvas = document.createElement('canvas');
       canvas.width = 512 * resolutionFactor;
@@ -344,7 +321,6 @@
       }
     }
 
-    // Función para crear los paneles de respuestas con mayor resolución
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
         const minArc = 1.39626;
@@ -464,51 +440,47 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
 
-    // Función para crear efecto de chispas con textura, sin detenerse por completo, y desapareciendo mientras se dispersan
+    // Función para crear chispas azules
     function createSparksEffect(position) {
-  const count = 100; // 100 partículas
-  const positions = new Float32Array(count * 3);
-  const velocities = [];
-  for (let i = 0; i < count; i++) {
-    positions[i * 3]     = position.x;
-    positions[i * 3 + 1] = position.y;
-    positions[i * 3 + 2] = position.z;
-    // Reducir el factor de dispersión para que no se dispersen tanto
-    velocities.push(new THREE.Vector3(
-      (Math.random() - 0.5) * 0.5,
-      (Math.random() - 0.5) * 0.5,
-      (Math.random() - 0.5) * 0.5
-    ));
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  
-  // Cargar la textura de la chispa (spark.png)
-  const sparkTexture = new THREE.TextureLoader().load('spark3.png');
+      const count = 100; // 100 partículas
+      const positions = new Float32Array(count * 3);
+      const velocities = [];
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
+        velocities.push(new THREE.Vector3(
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5
+        ));
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-sparkTexture.minFilter = THREE.NearestFilter;
-sparkTexture.magFilter = THREE.NearestFilter;
+      const sparkTexture = new THREE.TextureLoader().load('spark3.png');
+      sparkTexture.generateMipmaps = false;
+      sparkTexture.minFilter = THREE.NearestFilter;
+      sparkTexture.magFilter = THREE.NearestFilter;
 
+      const material = new THREE.PointsMaterial({
+        map: sparkTexture,
+        size: 0.05,
+        color: 0x0000FF, // Azul puro
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
 
-  const material = new THREE.PointsMaterial({
-    map: sparkTexture,
-    size: 0.05,
-
-    transparent: true,
-    blending: THREE.NormalBlending,
-    depthWrite: false
-  });
-  
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
-  sparksSystems.push({
-    points,
-    velocities,
-    startTime: performance.now(),
-    lastUpdate: performance.now()
-  });
-}
-
+      const points = new THREE.Points(geometry, material);
+      scene.add(points);
+      sparksSystems.push({
+        points,
+        velocities,
+        startTime: performance.now(),
+        lastUpdate: performance.now()
+      });
+    }
 
     function animate() {
       renderer.setAnimationLoop(render);
@@ -516,45 +488,35 @@ sparkTexture.magFilter = THREE.NearestFilter;
 
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
-
-      // Inicia el countdown y el audio en el primer frame en que la escena se muestra
-      if (gameReady && !countdownStarted) {
-        startCountdown();
-        const timerSound = document.getElementById('timerSound');
-        timerSound.loop = false;
-        timerSound.play().catch(e => console.error(e));
-        countdownStarted = true;
-      }
-
       const currentTime = performance.now();
-      // Actualizar sistemas de chispas: aplicar un "burst" con damping ligero para que no se detengan
+
+      // Actualización de los sistemas de chispas
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
         system.lastUpdate = currentTime;
-        // Tiempo transcurrido para el fade-out
+
+        // Aplicar fade out mínimo:
+        // Vida total = 1100 ms, de los cuales los primeros 1000 ms son opacos y los últimos 100 ms se desvanecen.
         const elapsed = currentTime - system.startTime;
-  const lifetime = 1100;    // Vida total en ms (1 seg visible + 100 ms de fade)
-  const fadeDuration = 100; // Los últimos 100 ms se desvanecen
-  if (elapsed < lifetime - fadeDuration) {
-    system.points.material.opacity = 1;
-  } else {
-    system.points.material.opacity = Math.max(1 - (elapsed - (lifetime - fadeDuration)) / fadeDuration, 0);
-  }
-        
+        const lifetime = 1100;    // 1 seg visible + 100 ms de fade
+        const fadeDuration = 100;
+        if (elapsed < lifetime - fadeDuration) {
+          system.points.material.opacity = 1;
+        } else {
+          system.points.material.opacity = Math.max(1 - (elapsed - (lifetime - fadeDuration)) / fadeDuration, 0);
+        }
+
         const positions = system.points.geometry.attributes.position.array;
         for (let j = 0; j < system.velocities.length; j++) {
-          // Actualizar posición con velocidad
           positions[j * 3]     += system.velocities[j].x * dt;
           positions[j * 3 + 1] += system.velocities[j].y * dt;
           positions[j * 3 + 2] += system.velocities[j].z * dt;
-          // Aplicar un damping más ligero para que no se detengan por completo
           system.velocities[j].multiplyScalar(Math.exp(-2 * dt));
         }
         system.points.geometry.attributes.position.needsUpdate = true;
-        
-        // Eliminar el sistema cuando se desvanezca
-        if (elapsed > fadeDuration) {
+
+        if (elapsed > lifetime) {
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
         }
@@ -607,12 +569,12 @@ sparkTexture.magFilter = THREE.NearestFilter;
                 const successClone = successSound.cloneNode();
                 successClone.play().catch(e => console.error(e));
                 createSparksEffect(panel.position);
-                if(questionMesh) questionMesh.visible = false;
+                if (questionMesh) questionMesh.visible = false;
                 answers.forEach(a => a.visible = false);
                 setTimeout(() => {
                   if (!gameOver) {
                     generateQuestion();
-                    if(questionMesh) questionMesh.visible = true;
+                    if (questionMesh) questionMesh.visible = true;
                     answers.forEach(a => a.visible = true);
                   }
                   hasCollided = false;
@@ -633,7 +595,6 @@ sparkTexture.magFilter = THREE.NearestFilter;
           }
         }
       } else {
-        // En game over, se mantiene el botón de Reiniciar
         if (restartButtonMesh) {
           const buttonPos = new THREE.Vector3();
           restartButtonMesh.getWorldPosition(buttonPos);
@@ -664,7 +625,6 @@ sparkTexture.magFilter = THREE.NearestFilter;
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
 
-      // Cuadro final de resultados (se muestra el cuadro azul)
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 256 * resolutionFactor;
       gameOverCanvas.height = 128 * resolutionFactor;
@@ -688,7 +648,6 @@ sparkTexture.magFilter = THREE.NearestFilter;
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
 
-      // Se crea el botón de Reiniciar
       restartButtonMesh = createButton("Reiniciar");
       restartButtonMesh.position.set(0, -0.3, -0.8);
       scene.add(restartButtonMesh);
@@ -715,36 +674,29 @@ sparkTexture.magFilter = THREE.NearestFilter;
     }
 
     function restartGame() {
-      if(finalMessageMesh) scene.remove(finalMessageMesh);
-      if(restartButtonMesh) scene.remove(restartButtonMesh);
-
+      if (finalMessageMesh) scene.remove(finalMessageMesh);
+      if (restartButtonMesh) scene.remove(restartButtonMesh);
       if (questionMesh) {
         scene.remove(questionMesh);
         questionMesh = null;
       }
-
       correctCount = 0;
       wrongCount = 0;
       gameStartTime = performance.now();
       gameOver = false;
-
       answers.forEach(panel => scene.remove(panel));
       answers = [];
-
       createAnswerObjects(selectedNumAnswers, true);
-
       generateQuestion();
       countdownStarted = false;
       gameReady = true;
       createScoreDisplay();
-
       const timerSound = document.getElementById('timerSound');
       timerSound.currentTime = 0;
       timerSound.loop = false;
       timerSound.play().catch(e => console.error(e));
     }
 
-    // Listener para desbloquear el audio en dispositivos móviles (se ejecuta solo una vez)
     window.addEventListener('touchstart', function unlockAudio() {
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
@@ -756,22 +708,14 @@ sparkTexture.magFilter = THREE.NearestFilter;
       });
     }, { once: true });
 
-    // Listener para detectar toques en la pantalla y procesar la respuesta
     window.addEventListener('touchstart', function(event) {
-      // Solo aplicar en móviles
       if (!/Mobi|Android/i.test(navigator.userAgent)) return;
-
-      // Convertir la posición del toque a coordenadas normalizadas (NDC)
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
       const y = - (touch.clientY / window.innerHeight) * 2 + 1;
       const mouseVector = new THREE.Vector2(x, y);
-
-      // Crear el raycaster y configurarlo con la cámara
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouseVector, camera);
-
-      // Determinar qué objetos comprobar según el estado del juego
       let objectsToIntersect = [];
       if (!gameOver) {
         objectsToIntersect = answers;
@@ -780,10 +724,7 @@ sparkTexture.magFilter = THREE.NearestFilter;
           objectsToIntersect = [restartButtonMesh];
         }
       }
-
-      // Realizar la intersección
       const intersects = raycaster.intersectObjects(objectsToIntersect);
-
       if (intersects.length > 0 && !hasCollided) {
         const panel = intersects[0].object;
         hasCollided = true;
@@ -799,7 +740,7 @@ sparkTexture.magFilter = THREE.NearestFilter;
             setTimeout(() => {
               if (!gameOver) {
                 generateQuestion();
-                if(questionMesh) questionMesh.visible = true;
+                if (questionMesh) questionMesh.visible = true;
                 answers.forEach(a => a.visible = true);
               }
               hasCollided = false;
@@ -815,6 +756,7 @@ sparkTexture.magFilter = THREE.NearestFilter;
               hasCollided = false;
             }, 500);
           }
+          return;
         } else {
           const successSound = document.getElementById('successSound');
           const successClone = successSound.cloneNode();
