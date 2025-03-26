@@ -466,44 +466,45 @@
 
     // Función para crear efecto de chispas con textura, sin detenerse por completo, y desapareciendo mientras se dispersan
     function createSparksEffect(position) {
-      const count = 100; // 100 partículas
-      const positions = new Float32Array(count * 3);
-      const velocities = [];
-      for (let i = 0; i < count; i++) {
-        positions[i * 3]     = position.x;
-        positions[i * 3 + 1] = position.y;
-        positions[i * 3 + 2] = position.z;
-        // Aumentamos la dispersión con un multiplicador de 2.0
-        velocities.push(new THREE.Vector3(
-          (Math.random() - 0.5) * 2.0,
-          (Math.random() - 0.5) * 2.0,
-          (Math.random() - 0.5) * 2.0
-        ));
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      
-      // Cargar la textura de la chispa
-      const sparkTexture = new THREE.TextureLoader().load('spark.png');
+  const count = 100; // 100 partículas
+  const positions = new Float32Array(count * 3);
+  const velocities = [];
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = position.x;
+    positions[i * 3 + 1] = position.y;
+    positions[i * 3 + 2] = position.z;
+    // Reducir el factor de dispersión: de 2.0 o 1.0 a 0.5 para que no se dispersen tanto
+    velocities.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5
+    ));
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  
+  // Cargar la textura de la chispa (spark.png)
+  const sparkTexture = new THREE.TextureLoader().load('spark.png');
 
-      const material = new THREE.PointsMaterial({
-        map: sparkTexture,
-        size: 0.05,
-        color: 0xffaa00,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-      
-      const points = new THREE.Points(geometry, material);
-      scene.add(points);
-      sparksSystems.push({
-        points,
-        velocities,
-        startTime: performance.now(),
-        lastUpdate: performance.now()
-      });
-    }
+  const material = new THREE.PointsMaterial({
+    map: sparkTexture,
+    size: 0.05,
+    color: 0xffaa00,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  
+  const points = new THREE.Points(geometry, material);
+  scene.add(points);
+  sparksSystems.push({
+    points,
+    velocities,
+    startTime: performance.now(),
+    lastUpdate: performance.now()
+  });
+}
+
 
     function animate() {
       renderer.setAnimationLoop(render);
