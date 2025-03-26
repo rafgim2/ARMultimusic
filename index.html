@@ -74,11 +74,7 @@
       src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav"
       preload="auto"
     ></audio>
-    <audio
-      id="timerSound"
-      src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer5.mp3"
-      preload="auto"
-    ></audio>
+    
     <audio
       id="timerSound"
       src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3"
@@ -534,7 +530,7 @@
           window.sparkTexture = createCircleTexture();
         }
         const material = new THREE.PointsMaterial({
-          color: 0x0000ff, // Color azul
+          color: 0xffffff, // Color azul
           size: 0.02,
           map: window.sparkTexture, // Textura circular para que sean redondas
           transparent: true,
