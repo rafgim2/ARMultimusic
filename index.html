@@ -66,7 +66,7 @@
     <!-- Audios: acierto, error, timer y beep -->
     <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
     <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-    <!-- Se ha quitado el audio timer5 y se deja solo el timer7 -->
+    <!-- Se ha quitado el audio timer5; se utiliza timer7 -->
     <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
     <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
 
@@ -125,8 +125,11 @@
       // Factor para mejorar la resolución de los canvas (multiplicador)
       const resolutionFactor = 4;
 
-      // Función para dibujar un rectángulo redondeado
+      // Función para dibujar un rectángulo redondeado sin sombra
       function drawRoundedRect(ctx, x, y, width, height, radius) {
+        // Aseguramos que no haya sombra
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
         ctx.lineTo(x + width - radius, y);
@@ -148,6 +151,8 @@
         canvas.height = 256 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
         ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
@@ -257,6 +262,9 @@
         countdownCanvas.width = 256 * resolutionFactor;
         countdownCanvas.height = 128 * resolutionFactor;
         countdownCtx = countdownCanvas.getContext('2d');
+        // Aseguramos no tener sombras
+        countdownCtx.shadowBlur = 0;
+        countdownCtx.shadowColor = 'rgba(0,0,0,0)';
         countdownTexture = new THREE.CanvasTexture(countdownCanvas);
         countdownTexture.minFilter = THREE.LinearFilter;
         countdownTexture.magFilter = THREE.LinearFilter;
@@ -274,6 +282,9 @@
         scoreCanvas.width = 256 * resolutionFactor;
         scoreCanvas.height = 128 * resolutionFactor;
         scoreCtx = scoreCanvas.getContext('2d');
+        // Aseguramos que no haya sombra
+        scoreCtx.shadowBlur = 0;
+        scoreCtx.shadowColor = 'rgba(0,0,0,0)';
         scoreTexture = new THREE.CanvasTexture(scoreCanvas);
         scoreTexture.minFilter = THREE.LinearFilter;
         scoreTexture.magFilter = THREE.LinearFilter;
@@ -290,6 +301,9 @@
         const seconds = Math.floor(remaining);
         let timeColor = remaining <= 10 ? "red" : "#FFFFFF";
         countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
+        // Aseguramos no tener sombra
+        countdownCtx.shadowBlur = 0;
+        countdownCtx.shadowColor = 'rgba(0,0,0,0)';
         countdownCtx.fillStyle = timeColor;
         countdownCtx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
         countdownCtx.textAlign = "center";
@@ -313,6 +327,9 @@
 
       function updateScoreDisplay() {
         scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
+        // Evitamos sombra
+        scoreCtx.shadowBlur = 0;
+        scoreCtx.shadowColor = 'rgba(0,0,0,0)';
         scoreCtx.fillStyle = "#FFFFFF";
         scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
         scoreCtx.textAlign = "center";
@@ -342,6 +359,8 @@
         canvas.height = 128 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
         ctx.font = 'Bold ' + (48 * resolutionFactor) + 'px Arial';
@@ -389,6 +408,9 @@
               canvas.height = 256 * resolutionFactor;
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
+              // Evitamos sombra
+              ctx.shadowBlur = 0;
+              ctx.shadowColor = 'rgba(0,0,0,0)';
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
               ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
@@ -432,6 +454,8 @@
               canvas.height = 256 * resolutionFactor;
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.shadowBlur = 0;
+              ctx.shadowColor = 'rgba(0,0,0,0)';
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
               ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
@@ -633,7 +657,7 @@
             }
           }
         } else {
-          // En game over, solo se mantiene el botón de Reiniciar
+          // En game over, se procesa el botón de Reiniciar
           if (restartButtonMesh) {
             const buttonPos = new THREE.Vector3();
             restartButtonMesh.getWorldPosition(buttonPos);
@@ -659,22 +683,18 @@
 
       function endGame() {
         gameOver = true;
-        // Se elimina la pausa del audio, de modo que éste siga hasta su final sin reiniciarse
-        // const timerSound = document.getElementById('timerSound');
-        // timerSound.pause();
-        // timerSound.currentTime = 0;
-
         if (questionMesh) scene.remove(questionMesh);
         if (countdownMesh) scene.remove(countdownMesh);
-        // Se elimina el marcador que se muestra durante el juego
         if (scoreMesh) scene.remove(scoreMesh);
         answers.forEach((panel) => scene.remove(panel));
 
-        // Cuadro final de resultados con mayor resolución (solo se muestra el cuadro azul)
+        // Cuadro final de resultados con mayor resolución (sin sombra)
         const gameOverCanvas = document.createElement('canvas');
         gameOverCanvas.width = 256 * resolutionFactor;
         gameOverCanvas.height = 128 * resolutionFactor;
         const gameOverCtx = gameOverCanvas.getContext('2d');
+        gameOverCtx.shadowBlur = 0;
+        gameOverCtx.shadowColor = 'rgba(0,0,0,0)';
         gameOverCtx.fillStyle = "#007BFF";
         drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10 * resolutionFactor);
         gameOverCtx.fillStyle = "#FFFFFF";
@@ -694,7 +714,7 @@
         finalMessageMesh.position.set(0, 0, -0.8);
         scene.add(finalMessageMesh);
 
-        // Se crea solo el botón de Reiniciar, posicionado un poco más arriba (por ejemplo, en y = -0.3)
+        // Se crea solo el botón de Reiniciar, posicionado un poco más arriba
         restartButtonMesh = createButton("Reiniciar");
         restartButtonMesh.position.set(0, -0.3, -0.8);
         scene.add(restartButtonMesh);
@@ -705,6 +725,8 @@
         canvas.width = 128 * resolutionFactor;
         canvas.height = 64 * resolutionFactor;
         const ctx = canvas.getContext('2d');
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'rgba(0,0,0,0)';
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
         ctx.fillStyle = "#FFFFFF";
@@ -723,31 +745,24 @@
       function restartGame() {
         if (finalMessageMesh) scene.remove(finalMessageMesh);
         if (restartButtonMesh) scene.remove(restartButtonMesh);
-
         if (questionMesh) {
           scene.remove(questionMesh);
           questionMesh = null;
         }
-
         correctCount = 0;
         wrongCount = 0;
         gameStartTime = performance.now();
         gameOver = false;
-
         answers.forEach((panel) => scene.remove(panel));
         answers = [];
-
         createAnswerObjects(selectedNumAnswers, true);
-
         generateQuestion();
-        // Reiniciamos variables para iniciar el countdown y el audio de nuevo en el primer frame renderizado
         countdownStarted = false;
         gameReady = true;
         createScoreDisplay();
-
         const timerSound = document.getElementById('timerSound');
         timerSound.currentTime = 0;
-        timerSound.loop = false; // No repetir el audio
+        timerSound.loop = false;
         timerSound.play().catch((e) => console.error(e));
       }
 
@@ -774,20 +789,13 @@
       window.addEventListener(
         'touchstart',
         function (event) {
-          // Solo aplicar en móviles
           if (!/Mobi|Android/i.test(navigator.userAgent)) return;
-
-          // Convertir la posición del toque a coordenadas normalizadas (NDC)
           const touch = event.touches[0];
           const x = (touch.clientX / window.innerWidth) * 2 - 1;
           const y = -(touch.clientY / window.innerHeight) * 2 + 1;
           const mouseVector = new THREE.Vector2(x, y);
-
-          // Crear el raycaster y configurarlo con la cámara
           const raycaster = new THREE.Raycaster();
           raycaster.setFromCamera(mouseVector, camera);
-
-          // Determinar qué objetos comprobar según si el juego está activo o finalizado
           let objectsToIntersect = [];
           if (!gameOver) {
             objectsToIntersect = answers;
@@ -796,15 +804,11 @@
               objectsToIntersect = [restartButtonMesh];
             }
           }
-
-          // Realizar la intersección
           const intersects = raycaster.intersectObjects(objectsToIntersect);
-
           if (intersects.length > 0 && !hasCollided) {
             const panel = intersects[0].object;
             hasCollided = true;
             if (!gameOver) {
-              // Verificar si la respuesta es correcta
               if (panel.userData.answer === correctAnswer) {
                 correctCount++;
                 const successSound = document.getElementById('successSound');
@@ -833,7 +837,6 @@
                 }, 500);
               }
             } else {
-              // En game over, se procesa el botón de Reiniciar
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch((e) => console.error(e));
