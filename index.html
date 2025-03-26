@@ -534,7 +534,7 @@ sparkTexture.magFilter = THREE.NearestFilter;
         system.lastUpdate = currentTime;
         // Tiempo transcurrido para el fade-out
         const elapsed = currentTime - system.startTime;
-        const fadeDuration = 1000; // 2 segundos para desaparecer
+        const fadeDuration = 100; // 2 segundos para desaparecer
         const opacity = Math.max(1 - elapsed / fadeDuration, 0);
         system.points.material.opacity = opacity;
         
