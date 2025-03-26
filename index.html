@@ -145,26 +145,32 @@
 
       // Función para actualizar el panel de respuesta con mayor resolución (sin sombra)
       function updateAnswerPanel(mesh, value) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256 * resolutionFactor;
-        canvas.height = 256 * resolutionFactor;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-       
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-        ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(value, canvas.width / 2, canvas.height / 2);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        mesh.material.map = texture;
-        mesh.material.needsUpdate = true;
-        mesh.userData.answer = value;
-      }
+  const canvas = document.createElement('canvas');
+  canvas.width = 256 * resolutionFactor;
+  canvas.height = 256 * resolutionFactor;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Rellenar todo el canvas para que las esquinas no queden transparentes
+  ctx.fillStyle = "#007BFF";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Ahora dibujamos el rectángulo redondeado (esto puede parecer redundante, pero ayuda a mantener la consistencia en caso de usar antialiasing)
+  drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
+  
+  ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(value, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  mesh.material.map = texture;
+  mesh.material.needsUpdate = true;
+  mesh.userData.answer = value;
+}
+
 
       // Función para crear una textura circular para las chispas
       function createCircleTexture() {
