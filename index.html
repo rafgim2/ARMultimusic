@@ -216,7 +216,7 @@
         generateQuestion();
         createScoreDisplay();
 
-        // En lugar de iniciar el countdown y el audio aquí, se marca que el juego ya está listo.
+        // Se marca que el juego ya está listo para iniciar el countdown y el audio
         gameReady = true;
       });
     }
@@ -240,7 +240,7 @@
       const geometry = new THREE.PlaneGeometry(0.6, 0.3);
       const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
       countdownMesh = new THREE.Mesh(geometry, material);
-      // Posición ajustada a -0.8 en Z para estar más cerca del usuario
+      // Posición ajustada para estar cerca del usuario
       countdownMesh.position.set(0, 0.50, -0.82);
       scene.add(countdownMesh);
     }
@@ -464,15 +464,16 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
 
-    // Función para crear efecto de chispas con textura, gravedad y fade-out
+    // Función para crear efecto de chispas con textura, sin gravedad y con un rápido "burst"
     function createSparksEffect(position) {
-      const count = 200; // Aumentamos el número de partículas
+      const count = 200; // Número de partículas
       const positions = new Float32Array(count * 3);
       const velocities = [];
       for (let i = 0; i < count; i++) {
         positions[i * 3] = position.x;
         positions[i * 3 + 1] = position.y;
         positions[i * 3 + 2] = position.z;
+        // Asignamos velocidades aleatorias para el "burst"
         velocities.push(new THREE.Vector3(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
@@ -521,29 +522,29 @@
       }
 
       const currentTime = performance.now();
-      // Actualizar sistemas de chispas: aplicar gravedad y desvanecimiento
+      // Actualizar sistemas de chispas: aplicar un "burst" con damping para detener el movimiento
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
         const dt = (currentTime - system.lastUpdate) / 1000;
         system.lastUpdate = currentTime;
-        // Calcular el tiempo transcurrido y actualizar la opacidad para un fade-out
+        // Tiempo transcurrido para el fade-out
         const elapsed = currentTime - system.startTime;
-        const fadeDuration = 2000; // Duración de 2 segundos para desaparecer
+        const fadeDuration = 2000; // 2 segundos para desaparecer
         const opacity = Math.max(1 - elapsed / fadeDuration, 0);
         system.points.material.opacity = opacity;
         
-        // Añadir efecto de gravedad
-        const gravity = new THREE.Vector3(0, -9.8, 0);
         const positions = system.points.geometry.attributes.position.array;
         for (let j = 0; j < system.velocities.length; j++) {
-          system.velocities[j].add(gravity.clone().multiplyScalar(dt));
+          // Actualizamos la posición con la velocidad
           positions[j * 3]     += system.velocities[j].x * dt;
           positions[j * 3 + 1] += system.velocities[j].y * dt;
           positions[j * 3 + 2] += system.velocities[j].z * dt;
+          // Aplicar damping para que las partículas desaceleren rápidamente (efecto burst)
+          system.velocities[j].multiplyScalar(Math.exp(-10 * dt));
         }
         system.points.geometry.attributes.position.needsUpdate = true;
         
-        // Eliminar el sistema de chispas cuando se desvanezca
+        // Eliminar el sistema cuando se desvanezca
         if (elapsed > fadeDuration) {
           scene.remove(system.points);
           sparksSystems.splice(i, 1);
@@ -623,7 +624,7 @@
           }
         }
       } else {
-        // En game over, solo se mantiene el botón de Reiniciar
+        // En game over, se mantiene el botón de Reiniciar
         if (restartButtonMesh) {
           const buttonPos = new THREE.Vector3();
           restartButtonMesh.getWorldPosition(buttonPos);
@@ -654,7 +655,7 @@
       if (scoreMesh) scene.remove(scoreMesh);
       answers.forEach(panel => scene.remove(panel));
 
-      // Cuadro final de resultados con mayor resolución (solo se muestra el cuadro azul)
+      // Cuadro final de resultados (solo se muestra el cuadro azul)
       const gameOverCanvas = document.createElement('canvas');
       gameOverCanvas.width = 256 * resolutionFactor;
       gameOverCanvas.height = 128 * resolutionFactor;
@@ -678,7 +679,7 @@
       finalMessageMesh.position.set(0, 0, -0.8);
       scene.add(finalMessageMesh);
 
-      // Se crea solo el botón de Reiniciar, posicionado un poco más arriba (por ejemplo, en y = -0.3)
+      // Se crea el botón de Reiniciar
       restartButtonMesh = createButton("Reiniciar");
       restartButtonMesh.position.set(0, -0.3, -0.8);
       scene.add(restartButtonMesh);
@@ -746,7 +747,7 @@
       });
     }, { once: true });
 
-    // Listener adicional para detectar toques en la pantalla y procesar la respuesta
+    // Listener para detectar toques en la pantalla y procesar la respuesta
     window.addEventListener('touchstart', function(event) {
       // Solo aplicar en móviles
       if (!/Mobi|Android/i.test(navigator.userAgent)) return;
@@ -761,7 +762,7 @@
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouseVector, camera);
 
-      // Determinar qué objetos comprobar según si el juego está activo o finalizado
+      // Determinar qué objetos comprobar según el estado del juego
       let objectsToIntersect = [];
       if (!gameOver) {
         objectsToIntersect = answers;
@@ -789,7 +790,7 @@
             setTimeout(() => {
               if (!gameOver) {
                 generateQuestion();
-                if (questionMesh) questionMesh.visible = true;
+                if(questionMesh) questionMesh.visible = true;
                 answers.forEach(a => a.visible = true);
               }
               hasCollided = false;
