@@ -128,8 +128,7 @@
       // Función para dibujar un rectángulo redondeado sin sombra
       function drawRoundedRect(ctx, x, y, width, height, radius) {
         // Aseguramos que no haya sombra
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'rgba(0,0,0,0)';
+        
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
         ctx.lineTo(x + width - radius, y);
@@ -262,8 +261,7 @@
         countdownCanvas.height = 128 * resolutionFactor;
         countdownCtx = countdownCanvas.getContext('2d');
         // Aseguramos no tener sombras
-        countdownCtx.shadowBlur = 0;
-        countdownCtx.shadowColor = 'rgba(0,0,0,0)';
+        
         countdownTexture = new THREE.CanvasTexture(countdownCanvas);
         countdownTexture.minFilter = THREE.LinearFilter;
         countdownTexture.magFilter = THREE.LinearFilter;
@@ -282,8 +280,7 @@
         scoreCanvas.height = 128 * resolutionFactor;
         scoreCtx = scoreCanvas.getContext('2d');
         // Aseguramos que no haya sombra
-        scoreCtx.shadowBlur = 0;
-        scoreCtx.shadowColor = 'rgba(0,0,0,0)';
+        
         scoreTexture = new THREE.CanvasTexture(scoreCanvas);
         scoreTexture.minFilter = THREE.LinearFilter;
         scoreTexture.magFilter = THREE.LinearFilter;
@@ -301,8 +298,7 @@
         let timeColor = remaining <= 10 ? "red" : "#FFFFFF";
         countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
         // Aseguramos no tener sombra
-        countdownCtx.shadowBlur = 0;
-        countdownCtx.shadowColor = 'rgba(0,0,0,0)';
+       
         countdownCtx.fillStyle = timeColor;
         countdownCtx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
         countdownCtx.textAlign = "center";
@@ -327,8 +323,7 @@
       function updateScoreDisplay() {
         scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
         // Evitamos sombra
-        scoreCtx.shadowBlur = 0;
-        scoreCtx.shadowColor = 'rgba(0,0,0,0)';
+        
         scoreCtx.fillStyle = "#FFFFFF";
         scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
         scoreCtx.textAlign = "center";
@@ -358,8 +353,7 @@
         canvas.height = 128 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'rgba(0,0,0,0)';
+        
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
         ctx.font = 'Bold ' + (48 * resolutionFactor) + 'px Arial';
@@ -408,8 +402,7 @@
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               // Evitamos sombra
-              ctx.shadowBlur = 0;
-              ctx.shadowColor = 'rgba(0,0,0,0)';
+              
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
               ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
@@ -691,8 +684,7 @@
         gameOverCanvas.width = 256 * resolutionFactor;
         gameOverCanvas.height = 128 * resolutionFactor;
         const gameOverCtx = gameOverCanvas.getContext('2d');
-        gameOverCtx.shadowBlur = 0;
-        gameOverCtx.shadowColor = 'rgba(0,0,0,0)';
+        
         gameOverCtx.fillStyle = "#007BFF";
         drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10 * resolutionFactor);
         gameOverCtx.fillStyle = "#FFFFFF";
@@ -723,8 +715,7 @@
         canvas.width = 128 * resolutionFactor;
         canvas.height = 64 * resolutionFactor;
         const ctx = canvas.getContext('2d');
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'rgba(0,0,0,0)';
+        
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
         ctx.fillStyle = "#FFFFFF";
