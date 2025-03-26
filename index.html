@@ -530,7 +530,7 @@
         system.lastUpdate = currentTime;
         // Tiempo transcurrido para el fade-out
         const elapsed = currentTime - system.startTime;
-        const fadeDuration = 2000; // 2 segundos para desaparecer
+        const fadeDuration = 1000; // 2 segundos para desaparecer
         const opacity = Math.max(1 - elapsed / fadeDuration, 0);
         system.points.material.opacity = opacity;
         
