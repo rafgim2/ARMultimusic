@@ -64,27 +64,11 @@
   </head>
   <body>
     <!-- Audios: acierto, error, timer y beep -->
-    <audio
-      id="successSound"
-      src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav"
-      preload="auto"
-    ></audio>
-    <audio
-      id="errorSound"
-      src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav"
-      preload="auto"
-    ></audio>
-    
-    <audio
-      id="timerSound"
-      src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3"
-      preload="auto"
-    ></audio>
-    <audio
-      id="beepSound"
-      src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav"
-      preload="auto"
-    ></audio>
+    <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
+    <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
+    <!-- Se ha quitado el audio timer5 y se deja solo el timer7 -->
+    <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
+    <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
 
     <script type="module">
       import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -157,18 +141,15 @@
         ctx.fill();
       }
 
-      // Función para actualizar el panel de respuesta con mayor resolución
+      // Función para actualizar el panel de respuesta con mayor resolución (sin sombra)
       function updateAnswerPanel(mesh, value) {
         const canvas = document.createElement('canvas');
         canvas.width = 256 * resolutionFactor;
         canvas.height = 256 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 10 * resolutionFactor;
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-        ctx.shadowBlur = 0;
         ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -354,18 +335,15 @@
         beepPlayed = false;
       }
 
-      // Función para actualizar el panel de pregunta con mayor resolución
+      // Función para actualizar el panel de pregunta con mayor resolución (sin sombra)
       function updateQuestionPanel() {
         const canvas = document.createElement('canvas');
         canvas.width = 512 * resolutionFactor;
         canvas.height = 128 * resolutionFactor;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 10 * resolutionFactor;
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-        ctx.shadowBlur = 0;
         ctx.font = 'Bold ' + (48 * resolutionFactor) + 'px Arial';
         ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = 'center';
@@ -386,7 +364,7 @@
         }
       }
 
-      // Función para crear los paneles de respuestas con mayor resolución
+      // Función para crear los paneles de respuestas con mayor resolución (sin sombra)
       function createAnswerObjects(numAnswers, initialCreation) {
         if (initialCreation) {
           const minArc = 1.39626;
@@ -411,11 +389,8 @@
               canvas.height = 256 * resolutionFactor;
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-              ctx.shadowBlur = 10 * resolutionFactor;
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-              ctx.shadowBlur = 0;
               ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
               ctx.fillStyle = "#FFFFFF";
               ctx.textAlign = 'center';
@@ -457,11 +432,8 @@
               canvas.height = 256 * resolutionFactor;
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-              ctx.shadowBlur = 10 * resolutionFactor;
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-              ctx.shadowBlur = 0;
               ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
               ctx.fillStyle = "#FFFFFF";
               ctx.textAlign = 'center';
@@ -530,7 +502,7 @@
           window.sparkTexture = createCircleTexture();
         }
         const material = new THREE.PointsMaterial({
-          color: 0xffffff, // Color azul
+          color: 0x0000ff, // Color azul (puedes cambiarlo a blanco: 0xffffff)
           size: 0.02,
           map: window.sparkTexture, // Textura circular para que sean redondas
           transparent: true,
