@@ -534,9 +534,13 @@ sparkTexture.magFilter = THREE.NearestFilter;
         system.lastUpdate = currentTime;
         // Tiempo transcurrido para el fade-out
         const elapsed = currentTime - system.startTime;
-        const fadeDuration = 100; // 2 segundos para desaparecer
-        const opacity = Math.max(1 - elapsed / fadeDuration, 0);
-        system.points.material.opacity = opacity;
+  const lifetime = 1100;    // Vida total en ms (1 seg visible + 100 ms de fade)
+  const fadeDuration = 100; // Los últimos 100 ms se desvanecen
+  if (elapsed < lifetime - fadeDuration) {
+    system.points.material.opacity = 1;
+  } else {
+    system.points.material.opacity = Math.max(1 - (elapsed - (lifetime - fadeDuration)) / fadeDuration, 0);
+  }
         
         const positions = system.points.geometry.attributes.position.array;
         for (let j = 0; j < system.velocities.length; j++) {
