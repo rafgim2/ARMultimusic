@@ -470,10 +470,10 @@
   const positions = new Float32Array(count * 3);
   const velocities = [];
   for (let i = 0; i < count; i++) {
-    positions[i * 3] = position.x;
+    positions[i * 3]     = position.x;
     positions[i * 3 + 1] = position.y;
     positions[i * 3 + 2] = position.z;
-    // Reducir el factor de dispersión: de 2.0 o 1.0 a 0.5 para que no se dispersen tanto
+    // Reducir el factor de dispersión para que no se dispersen tanto
     velocities.push(new THREE.Vector3(
       (Math.random() - 0.5) * 0.5,
       (Math.random() - 0.5) * 0.5,
@@ -485,6 +485,9 @@
   
   // Cargar la textura de la chispa (spark.png)
   const sparkTexture = new THREE.TextureLoader().load('spark.png');
+  // Cambiar el filtro para que la textura se vea más nítida y menos borrosa
+  sparkTexture.minFilter = THREE.NearestFilter;
+  sparkTexture.magFilter = THREE.NearestFilter;
 
   const material = new THREE.PointsMaterial({
     map: sparkTexture,
