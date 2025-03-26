@@ -485,9 +485,10 @@
   
   // Cargar la textura de la chispa (spark.png)
   const sparkTexture = new THREE.TextureLoader().load('spark.png');
-  // Cambiar el filtro para que la textura se vea más nítida y menos borrosa
-  sparkTexture.minFilter = THREE.NearestFilter;
-  sparkTexture.magFilter = THREE.NearestFilter;
+sparkTexture.generateMipmaps = false;
+sparkTexture.minFilter = THREE.NearestFilter;
+sparkTexture.magFilter = THREE.NearestFilter;
+
 
   const material = new THREE.PointsMaterial({
     map: sparkTexture,
