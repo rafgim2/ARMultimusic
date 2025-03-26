@@ -127,8 +127,6 @@
 
       // Función para dibujar un rectángulo redondeado sin sombra
       function drawRoundedRect(ctx, x, y, width, height, radius) {
-        // Aseguramos que no haya sombra
-        
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
         ctx.lineTo(x + width - radius, y);
@@ -145,32 +143,30 @@
 
       // Función para actualizar el panel de respuesta con mayor resolución (sin sombra)
       function updateAnswerPanel(mesh, value) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256 * resolutionFactor;
-  canvas.height = 256 * resolutionFactor;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Rellenar todo el canvas para que las esquinas no queden transparentes
-  ctx.fillStyle = "#007BFF";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Ahora dibujamos el rectángulo redondeado (esto puede parecer redundante, pero ayuda a mantener la consistencia en caso de usar antialiasing)
-  drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-  
-  ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-  ctx.fillStyle = "#FFFFFF";
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(value, canvas.width / 2, canvas.height / 2);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  mesh.material.map = texture;
-  mesh.material.needsUpdate = true;
-  mesh.userData.answer = value;
-}
-
+        const canvas = document.createElement('canvas');
+        canvas.width = 256 * resolutionFactor;
+        canvas.height = 256 * resolutionFactor;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+       
+        // Dibujar el rectángulo redondeado (la parte externa quedará transparente)
+        ctx.fillStyle = "#007BFF";
+        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
+        
+        ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
+        ctx.fillStyle = "#FFFFFF";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(value, canvas.width / 2, canvas.height / 2);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        mesh.material.map = texture;
+        // Habilitamos la transparencia para que se respeten los bordes redondeados
+        mesh.material.transparent = true;
+        mesh.material.needsUpdate = true;
+        mesh.userData.answer = value;
+      }
 
       // Función para crear una textura circular para las chispas
       function createCircleTexture() {
@@ -248,7 +244,7 @@
           generateQuestion();
           createScoreDisplay();
 
-          // En lugar de iniciar el countdown y el audio aquí, se marca que el juego ya está listo.
+          // Se marca que el juego ya está listo
           gameReady = true;
         });
       }
@@ -266,7 +262,6 @@
         countdownCanvas.width = 256 * resolutionFactor;
         countdownCanvas.height = 128 * resolutionFactor;
         countdownCtx = countdownCanvas.getContext('2d');
-        // Aseguramos no tener sombras
         
         countdownTexture = new THREE.CanvasTexture(countdownCanvas);
         countdownTexture.minFilter = THREE.LinearFilter;
@@ -274,7 +269,6 @@
         const geometry = new THREE.PlaneGeometry(0.6, 0.3);
         const material = new THREE.MeshBasicMaterial({ map: countdownTexture, transparent: true });
         countdownMesh = new THREE.Mesh(geometry, material);
-        // Posición ajustada a -0.8 en Z para estar más cerca del usuario
         countdownMesh.position.set(0, 0.50, -0.82);
         scene.add(countdownMesh);
       }
@@ -285,7 +279,6 @@
         scoreCanvas.width = 256 * resolutionFactor;
         scoreCanvas.height = 128 * resolutionFactor;
         scoreCtx = scoreCanvas.getContext('2d');
-        // Aseguramos que no haya sombra
         
         scoreTexture = new THREE.CanvasTexture(scoreCanvas);
         scoreTexture.minFilter = THREE.LinearFilter;
@@ -303,7 +296,6 @@
         const seconds = Math.floor(remaining);
         let timeColor = remaining <= 10 ? "red" : "#FFFFFF";
         countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
-        // Aseguramos no tener sombra
        
         countdownCtx.fillStyle = timeColor;
         countdownCtx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
@@ -328,8 +320,7 @@
 
       function updateScoreDisplay() {
         scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
-        // Evitamos sombra
-        
+       
         scoreCtx.fillStyle = "#FFFFFF";
         scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
         scoreCtx.textAlign = "center";
@@ -407,7 +398,6 @@
               canvas.height = 256 * resolutionFactor;
               const ctx = canvas.getContext('2d');
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              // Evitamos sombra
               
               ctx.fillStyle = "#007BFF";
               drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
@@ -426,7 +416,7 @@
               const texture = new THREE.CanvasTexture(canvas);
               texture.minFilter = THREE.LinearFilter;
               texture.magFilter = THREE.LinearFilter;
-              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
               const geometry = new THREE.PlaneGeometry(0.15, 0.15);
               const mesh = new THREE.Mesh(geometry, material);
               const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
@@ -470,7 +460,7 @@
               const texture = new THREE.CanvasTexture(canvas);
               texture.minFilter = THREE.LinearFilter;
               texture.magFilter = THREE.LinearFilter;
-              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
               const geometry = new THREE.PlaneGeometry(0.15, 0.15);
               const mesh = new THREE.Mesh(geometry, material);
               mesh.position.copy(originalAnswerTransforms[i].position);
@@ -518,14 +508,13 @@
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        // Si aún no se creó la textura circular, se crea y se guarda en window.sparkTexture
         if (!window.sparkTexture) {
           window.sparkTexture = createCircleTexture();
         }
         const material = new THREE.PointsMaterial({
-          color: 0xffffff, // Color azul (puedes cambiarlo a blanco: 0xffffff)
+          color: 0xffffff,
           size: 0.02,
-          map: window.sparkTexture, // Textura circular para que sean redondas
+          map: window.sparkTexture,
           transparent: true,
           depthWrite: false,
         });
@@ -546,11 +535,10 @@
       function render(timestamp, xrFrame) {
         renderer.render(scene, camera);
 
-        // Inicia el countdown y el audio en el primer frame en que la escena ya se mostró
         if (gameReady && !countdownStarted) {
           startCountdown();
           const timerSound = document.getElementById('timerSound');
-          timerSound.loop = false; // No repetir el audio
+          timerSound.loop = false;
           timerSound.play().catch((e) => console.error(e));
           countdownStarted = true;
         }
@@ -569,7 +557,6 @@
           system.points.geometry.attributes.position.needsUpdate = true;
           const elapsedTime = currentTime - system.startTime;
           if (elapsedTime > 1700) {
-            // En los últimos 300ms se desvanece la opacidad de 1 a 0
             const fadeProgress = (elapsedTime - 1700) / 300;
             system.points.material.opacity = Math.max(1 - fadeProgress, 0);
           }
@@ -654,7 +641,6 @@
             }
           }
         } else {
-          // En game over, se procesa el botón de Reiniciar
           if (restartButtonMesh) {
             const buttonPos = new THREE.Vector3();
             restartButtonMesh.getWorldPosition(buttonPos);
@@ -685,7 +671,6 @@
         if (scoreMesh) scene.remove(scoreMesh);
         answers.forEach((panel) => scene.remove(panel));
 
-        // Cuadro final de resultados con mayor resolución (sin sombra)
         const gameOverCanvas = document.createElement('canvas');
         gameOverCanvas.width = 256 * resolutionFactor;
         gameOverCanvas.height = 128 * resolutionFactor;
@@ -710,7 +695,6 @@
         finalMessageMesh.position.set(0, 0, -0.8);
         scene.add(finalMessageMesh);
 
-        // Se crea solo el botón de Reiniciar, posicionado un poco más arriba
         restartButtonMesh = createButton("Reiniciar");
         restartButtonMesh.position.set(0, -0.3, -0.8);
         scene.add(restartButtonMesh);
@@ -761,7 +745,6 @@
         timerSound.play().catch((e) => console.error(e));
       }
 
-      // Listener para desbloquear el audio en dispositivos móviles (se ejecuta solo una vez)
       window.addEventListener(
         'touchstart',
         function unlockAudio() {
@@ -780,7 +763,6 @@
         { once: true }
       );
 
-      // Listener adicional para detectar toques en la pantalla y procesar la respuesta
       window.addEventListener(
         'touchstart',
         function (event) {
