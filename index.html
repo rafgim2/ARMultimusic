@@ -393,8 +393,9 @@
           const angleStart = -arcAngle / 2;
           const angleEnd = arcAngle / 2;
           const baseRadius = 0.8;
-          // Forzamos que TODOS los paneles aparezcan por debajo de la pregunta con un height fijo
-          const fixedHeight = 0.15;
+          // Definir el rango de alturas: desde un poco más alto del suelo hasta justo por debajo de la pregunta (0.3)
+          const minHeight = 0.1;
+          const maxHeight = 0.28;
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
@@ -429,17 +430,18 @@
             const radius = baseRadius + (i - (numAnswers - 1) / 2) * 0.05;
             mesh.userData.initialAngle = angle;
             mesh.userData.radius = radius;
-            // Usamos fixedHeight para que TODOS queden por debajo de la pregunta
-            mesh.userData.heightOffset = fixedHeight;
+            // Asignar una altura aleatoria entre minHeight y maxHeight
+            const height = minHeight + Math.random() * (maxHeight - minHeight);
+            mesh.userData.heightOffset = height;
+            const x = radius * Math.sin(angle);
+            const z = -radius * Math.cos(angle);
+            mesh.position.set(x, height, z);
             // Velocidad de rotación en un rango reducido
             mesh.userData.rotationSpeed = 0.0003 + Math.random() * 0.0002;
             if (Math.random() < 0.5) {
               mesh.userData.rotationSpeed *= -1;
             }
-            const x = radius * Math.sin(angle);
-            const z = -radius * Math.cos(angle);
-            mesh.position.set(x, fixedHeight, z);
-            // Que el panel mire siempre a la cámara
+            // Hacer que el panel mire siempre a la cámara
             const cameraWorldPos = new THREE.Vector3();
             camera.getWorldPosition(cameraWorldPos);
             mesh.lookAt(cameraWorldPos);
@@ -519,14 +521,12 @@
         // Actualización de la posición de los paneles de respuesta
         answers.forEach((panel, index) => {
           if (rotationActive) {
-            // Usar la velocidad individual y actualizar el ángulo
             const newAngle = panel.userData.initialAngle + panel.userData.rotationSpeed * timestamp;
             const cameraPos = new THREE.Vector3();
             camera.getWorldPosition(cameraPos);
             const radius = panel.userData.radius || 0.8;
             const newX = cameraPos.x + radius * Math.sin(newAngle);
             const newZ = cameraPos.z - radius * Math.cos(newAngle);
-            // Mantener la altura fija para que queden todos por debajo de la pregunta
             panel.position.set(newX, panel.userData.heightOffset, newZ);
             panel.lookAt(cameraPos);
           } else {
