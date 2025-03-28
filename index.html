@@ -398,8 +398,8 @@
           const angleEnd = arcAngle / 2;
           const baseRadius = 0.8;
           // Rango de alturas: desde un poco más alto del suelo (0.1) hasta justo por debajo de la pregunta (0.28)
-          const minHeight = -1;
-          const maxHeight = 0.18;
+          const minHeight = 0.01;
+          const maxHeight = 0.20;
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
