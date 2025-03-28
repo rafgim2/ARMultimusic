@@ -127,7 +127,7 @@
 
       // Variable para activar el modo de rotación
       let rotationActive = false;
-      // Punto de referencia fijo para la rotación (capturado al inicio)
+      // Centro de rotación fijo (el usuario)
       let rotationCenter = new THREE.Vector3();
 
       // Función para dibujar un rectángulo redondeado sin sombra
@@ -251,7 +251,7 @@
 
         document.body.appendChild(overlay);
 
-        // Al iniciar la sesión, se captura un punto de referencia fijo (el centro de rotación)
+        // Al iniciar la sesión, se captura la posición actual de la cámara para usarla como centro de rotación
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
           rotationCenter.copy(camera.getWorldPosition(new THREE.Vector3()));
@@ -391,15 +391,14 @@
       // Crear los paneles de respuesta
       function createAnswerObjects(numAnswers, initialCreation) {
         if (initialCreation) {
-          const minArc = 1.39626;
-          const maxArc = Math.PI;
-          let arcAngle = numAnswers <= 4 ? minArc : (numAnswers >= 10 ? maxArc : minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc));
+          // Fijamos un arco de 90° para que todas las respuestas queden frente al usuario
+          const arcAngle = Math.PI / 2;
           const angleStart = -arcAngle / 2;
           const angleEnd = arcAngle / 2;
           const baseRadius = 0.8;
-          // Rango de alturas: desde un poco más alto del suelo (0.1) hasta justo por debajo de la pregunta (0.28)
-          const minHeight = 0.01;
-          const maxHeight = 0.20;
+          // Definimos el rango de alturas deseado: de -0.19 (más bajo) a 0.19 (más alto)
+          const minHeight = -0.19;
+          const maxHeight = 0.19;
           originalAnswerTransforms = [];
           for (let i = 0; i < numAnswers; i++) {
             const canvas = document.createElement('canvas');
@@ -437,15 +436,16 @@
             // Asignar una altura aleatoria entre minHeight y maxHeight
             const height = minHeight + Math.random() * (maxHeight - minHeight);
             mesh.userData.heightOffset = height;
+            // Posicionar relativo al centro de rotación fijo (el usuario)
             const x = radius * Math.sin(angle);
             const z = -radius * Math.cos(angle);
-            mesh.position.set(x, height, z);
+            mesh.position.set(rotationCenter.x + x, height, rotationCenter.z + z);
             // Velocidad de rotación en un rango reducido
             mesh.userData.rotationSpeed = 0.0003 + Math.random() * 0.0002;
             if (Math.random() < 0.5) {
               mesh.userData.rotationSpeed *= -1;
             }
-            // Hacer que el panel mire siempre hacia el centro fijo de rotación
+            // Hacer que el panel mire siempre hacia el centro (el usuario)
             mesh.lookAt(rotationCenter);
             mesh.userData.answer = answersArray[i];
             answers.push(mesh);
@@ -523,7 +523,7 @@
         // Actualización de la posición de los paneles de respuesta
         answers.forEach((panel, index) => {
           if (rotationActive) {
-            // Usar la velocidad individual y actualizar el ángulo sin depender de la posición actual de la cámara
+            // Actualizar el ángulo sin depender de la posición actual de la cámara
             const newAngle = panel.userData.initialAngle + panel.userData.rotationSpeed * timestamp;
             const radius = panel.userData.radius || 0.8;
             const newX = rotationCenter.x + radius * Math.sin(newAngle);
