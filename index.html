@@ -13,13 +13,12 @@
       /* Overlay del menú inicial */
       #overlay {
         position: absolute;
-        padding-top: 100px; /* Ajusta este valor según necesites */
+        padding-top: 100px;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         background-color: orange;
-        border: 0px solid blue;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
@@ -59,7 +58,6 @@
         max-width: 15%;
       }
       @media (orientation: portrait) {
-        /* En móviles verticales se usa un tamaño mayor */
         #overlay img {
           max-width: 70%;
         }
@@ -70,13 +68,11 @@
     <!-- Audios: acierto, error, timer y beep -->
     <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
     <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-    <!-- Se ha quitado el audio timer5; se utiliza timer7 -->
     <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
     <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
 
     <script type="module">
       import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-      // Si no es móvil, se solicita además hand-tracking
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
@@ -122,11 +118,11 @@
       // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
       let beepPlayed = false;
 
-      // Variables para controlar el inicio del countdown y audio al primer render con la escena lista
+      // Variables para controlar el inicio del countdown y audio al primer render
       let gameReady = false;
       let countdownStarted = false;
 
-      // Factor para mejorar la resolución de los canvas (multiplicador)
+      // Factor para mejorar la resolución de los canvas
       const resolutionFactor = 4;
 
       // Variable para activar el modo de rotación
@@ -148,7 +144,7 @@
         ctx.fill();
       }
 
-      // Función para actualizar el panel de respuesta con mayor resolución (sin sombra)
+      // Función para actualizar el panel de respuesta con mayor resolución
       function updateAnswerPanel(mesh, value) {
         const canvas = document.createElement('canvas');
         canvas.width = 256 * resolutionFactor;
@@ -156,7 +152,6 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
        
-        // Dibujar el rectángulo redondeado (la parte externa quedará transparente)
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
         
@@ -169,7 +164,6 @@
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         mesh.material.map = texture;
-        // Habilitamos la transparencia para que se respeten los bordes redondeados
         mesh.material.transparent = true;
         mesh.material.needsUpdate = true;
         mesh.userData.answer = value;
@@ -229,7 +223,7 @@
             '<button id="toggleRotation" style="width: 150px; height: 50px; font-size: 16px; background-color: grey; color: white; margin-bottom:20px;">Activar rotación</button>' +
           '</div>';
 
-        // Agregar el listener para el botón de rotación
+        // Listener para el botón de rotación
         setTimeout(() => {
           document.getElementById('toggleRotation').addEventListener('click', function() {
             rotationActive = !rotationActive;
@@ -237,7 +231,7 @@
           });
         }, 0);
 
-        // Crear el botón AR con estilos personalizados
+        // Crear el botón AR
         const arButton = ARButton.createButton(renderer, { requiredFeatures });
         if (arButton.parentNode) {
           arButton.parentNode.removeChild(arButton);
@@ -261,8 +255,6 @@
           overlay.remove();
           generateQuestion();
           createScoreDisplay();
-
-          // Se marca que el juego ya está listo
           gameReady = true;
         });
       }
@@ -273,7 +265,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
-      // Función para iniciar el conteo regresivo
+      // Función para iniciar el countdown
       function startCountdown() {
         gameStartTime = performance.now();
         countdownCanvas = document.createElement('canvas');
@@ -291,7 +283,7 @@
         scene.add(countdownMesh);
       }
 
-      // Función para crear la visualización del score durante el juego
+      // Función para mostrar el score
       function createScoreDisplay() {
         scoreCanvas = document.createElement('canvas');
         scoreCanvas.width = 256 * resolutionFactor;
@@ -361,7 +353,7 @@
         beepPlayed = false;
       }
 
-      // Función para actualizar el panel de pregunta con mayor resolución (sin sombra)
+      // Actualiza el panel de la pregunta
       function updateQuestionPanel() {
         const canvas = document.createElement('canvas');
         canvas.width = 512 * resolutionFactor;
@@ -386,122 +378,78 @@
           const geometry = new THREE.PlaneGeometry(0.6, 0.15);
           const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
           questionMesh = new THREE.Mesh(geometry, material);
-          // La pregunta se ubica en y = 0.3 para evitar que las respuestas la tapen
+          // Ubicar la pregunta en y = 0.3
           questionMesh.position.set(0, 0.3, -0.8);
           scene.add(questionMesh);
         }
       }
 
-      // Función para crear los paneles de respuestas con mayor resolución (sin sombra)
+      // Crear los paneles de respuesta
       function createAnswerObjects(numAnswers, initialCreation) {
         if (initialCreation) {
           const minArc = 1.39626;
           const maxArc = Math.PI;
-          let arcAngle;
-          if (numAnswers <= 4) {
-            arcAngle = minArc;
-          } else if (numAnswers >= 10) {
-            arcAngle = maxArc;
-          } else {
-            arcAngle = minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
-          }
+          let arcAngle = numAnswers <= 4 ? minArc : (numAnswers >= 10 ? maxArc : minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc));
           const angleStart = -arcAngle / 2;
           const angleEnd = arcAngle / 2;
-          const radius = 0.8;
-
-          if (originalAnswerTransforms === null) {
-            originalAnswerTransforms = [];
-            for (let i = 0; i < numAnswers; i++) {
-              const canvas = document.createElement('canvas');
-              canvas.width = 256 * resolutionFactor;
-              canvas.height = 256 * resolutionFactor;
-              const ctx = canvas.getContext('2d');
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              
-              ctx.fillStyle = "#007BFF";
-              drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-              ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-              ctx.fillStyle = "#FFFFFF";
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              const wrongAnswers = new Set();
-              while (wrongAnswers.size < numAnswers - 1) {
-                let wrong = Math.floor(Math.random() * 100) + 1;
-                if (wrong !== correctAnswer) wrongAnswers.add(wrong);
-              }
-              const answersArray = [correctAnswer, ...wrongAnswers];
-              answersArray.sort(() => Math.random() - 0.5);
-              ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
-              const texture = new THREE.CanvasTexture(canvas);
-              texture.minFilter = THREE.LinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-              const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-              const mesh = new THREE.Mesh(geometry, material);
-              const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
-              const x = radius * Math.sin(angle);
-              const z = -radius * Math.cos(angle);
-              mesh.position.set(x, 0, z);
-              // Guardar el ángulo inicial y el radio para la rotación
-              mesh.userData.initialAngle = angle;
-              mesh.userData.radius = radius;
-              // Asignar una velocidad aleatoria entre 0.0005 y 0.002, con posibilidad de girar en sentido opuesto
-              mesh.userData.rotationSpeed = 0.0005 + Math.random() * 0.0015;
-              if (Math.random() < 0.5) {
-                mesh.userData.rotationSpeed *= -1;
-              }
-              // Asignar un offset vertical que no alcance la altura de la pregunta (0.3)
-              if (Math.random() < 0.5) {
-                mesh.userData.heightOffset = 0.1 + Math.random() * (0.25 - 0.1);
-              } else {
-                mesh.userData.heightOffset = 0.35 + Math.random() * (0.5 - 0.35);
-              }
-              const cameraWorldPos = new THREE.Vector3();
-              camera.getWorldPosition(cameraWorldPos);
-              const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
-              mesh.lookAt(lookAtPos);
-              mesh.userData.answer = answersArray[i];
-              answers.push(mesh);
-              scene.add(mesh);
-              originalAnswerTransforms.push({
-                position: mesh.position.clone(),
-                rotation: mesh.rotation.clone(),
-              });
+          const baseRadius = 0.8;
+          // Forzamos que TODOS los paneles aparezcan por debajo de la pregunta con un height fijo
+          const fixedHeight = 0.15;
+          originalAnswerTransforms = [];
+          for (let i = 0; i < numAnswers; i++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256 * resolutionFactor;
+            canvas.height = 256 * resolutionFactor;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#007BFF";
+            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
+            ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const wrongAnswers = new Set();
+            while (wrongAnswers.size < numAnswers - 1) {
+              let wrong = Math.floor(Math.random() * 100) + 1;
+              if (wrong !== correctAnswer) wrongAnswers.add(wrong);
             }
-          } else {
-            for (let i = 0; i < numAnswers; i++) {
-              const canvas = document.createElement('canvas');
-              canvas.width = 256 * resolutionFactor;
-              canvas.height = 256 * resolutionFactor;
-              const ctx = canvas.getContext('2d');
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              
-              ctx.fillStyle = "#007BFF";
-              drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-              ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-              ctx.fillStyle = "#FFFFFF";
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              const wrongAnswers = new Set();
-              while (wrongAnswers.size < numAnswers - 1) {
-                let wrong = Math.floor(Math.random() * 100) + 1;
-                if (wrong !== correctAnswer) wrongAnswers.add(wrong);
-              }
-              const answersArray = [correctAnswer, ...wrongAnswers];
-              answersArray.sort(() => Math.random() - 0.5);
-              ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
-              const texture = new THREE.CanvasTexture(canvas);
-              texture.minFilter = THREE.LinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-              const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-              const mesh = new THREE.Mesh(geometry, material);
-              mesh.position.copy(originalAnswerTransforms[i].position);
-              mesh.rotation.copy(originalAnswerTransforms[i].rotation);
-              mesh.userData.answer = answersArray[i];
-              answers.push(mesh);
-              scene.add(mesh);
+            const answersArray = [correctAnswer, ...wrongAnswers];
+            answersArray.sort(() => Math.random() - 0.5);
+            ctx.fillText(answersArray[i], canvas.width / 2, canvas.height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+            const mesh = new THREE.Mesh(geometry, material);
+            // Calcular ángulo según la posición en el arco
+            const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
+            // Asignar un radio distinto para evitar solapamientos (incremento de 0.05 por panel)
+            const radius = baseRadius + (i - (numAnswers - 1) / 2) * 0.05;
+            mesh.userData.initialAngle = angle;
+            mesh.userData.radius = radius;
+            // Usamos fixedHeight para que TODOS queden por debajo de la pregunta
+            mesh.userData.heightOffset = fixedHeight;
+            // Velocidad de rotación en un rango reducido
+            mesh.userData.rotationSpeed = 0.0003 + Math.random() * 0.0002;
+            if (Math.random() < 0.5) {
+              mesh.userData.rotationSpeed *= -1;
             }
+            const x = radius * Math.sin(angle);
+            const z = -radius * Math.cos(angle);
+            mesh.position.set(x, fixedHeight, z);
+            // Que el panel mire siempre a la cámara
+            const cameraWorldPos = new THREE.Vector3();
+            camera.getWorldPosition(cameraWorldPos);
+            mesh.lookAt(cameraWorldPos);
+            mesh.userData.answer = answersArray[i];
+            answers.push(mesh);
+            scene.add(mesh);
+            originalAnswerTransforms.push({
+              position: mesh.position.clone(),
+              rotation: mesh.rotation.clone(),
+            });
           }
         } else {
           const numAnswersExisting = selectedNumAnswers;
@@ -522,7 +470,7 @@
         createAnswerObjects(selectedNumAnswers, false);
       }
 
-      // Función para crear efecto de chispas
+      // Efecto de chispas
       function createSparksEffect(position) {
         const count = 100;
         const positions = new Float32Array(count * 3);
@@ -568,17 +516,17 @@
       function render(timestamp, xrFrame) {
         renderer.render(scene, camera);
 
-        // Actualización de la posición de los paneles de respuesta:
+        // Actualización de la posición de los paneles de respuesta
         answers.forEach((panel, index) => {
           if (rotationActive) {
-            // Usamos la velocidad individual asignada y actualizamos el ángulo
+            // Usar la velocidad individual y actualizar el ángulo
             const newAngle = panel.userData.initialAngle + panel.userData.rotationSpeed * timestamp;
             const cameraPos = new THREE.Vector3();
             camera.getWorldPosition(cameraPos);
             const radius = panel.userData.radius || 0.8;
             const newX = cameraPos.x + radius * Math.sin(newAngle);
             const newZ = cameraPos.z - radius * Math.cos(newAngle);
-            // Usar el offset vertical previamente asignado (que evita la altura 0.3 de la pregunta)
+            // Mantener la altura fija para que queden todos por debajo de la pregunta
             panel.position.set(newX, panel.userData.heightOffset, newZ);
             panel.lookAt(cameraPos);
           } else {
