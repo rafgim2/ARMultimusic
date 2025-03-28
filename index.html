@@ -115,10 +115,10 @@
       // Almacenar la posición y orientación originales de cada panel
       let originalAnswerTransforms = null;
 
-      // Variable para controlar el beep (se reproducirá solo una vez cuando falten 10 segundos)
+      // Variable para controlar el beep
       let beepPlayed = false;
 
-      // Variables para controlar el inicio del countdown y audio al primer render
+      // Variables para controlar el inicio del countdown y audio
       let gameReady = false;
       let countdownStarted = false;
 
@@ -127,6 +127,8 @@
 
       // Variable para activar el modo de rotación
       let rotationActive = false;
+      // Punto de referencia fijo para la rotación (capturado al inicio)
+      let rotationCenter = new THREE.Vector3();
 
       // Función para dibujar un rectángulo redondeado sin sombra
       function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -249,8 +251,10 @@
 
         document.body.appendChild(overlay);
 
+        // Al iniciar la sesión, se captura un punto de referencia fijo (el centro de rotación)
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+          rotationCenter.copy(camera.getWorldPosition(new THREE.Vector3()));
           createAnswerObjects(selectedNumAnswers, true);
           overlay.remove();
           generateQuestion();
@@ -393,7 +397,7 @@
           const angleStart = -arcAngle / 2;
           const angleEnd = arcAngle / 2;
           const baseRadius = 0.8;
-          // Definir el rango de alturas: desde un poco más alto del suelo hasta justo por debajo de la pregunta (0.3)
+          // Rango de alturas: desde un poco más alto del suelo (0.1) hasta justo por debajo de la pregunta (0.28)
           const minHeight = 0.1;
           const maxHeight = 0.28;
           originalAnswerTransforms = [];
@@ -441,10 +445,8 @@
             if (Math.random() < 0.5) {
               mesh.userData.rotationSpeed *= -1;
             }
-            // Hacer que el panel mire siempre a la cámara
-            const cameraWorldPos = new THREE.Vector3();
-            camera.getWorldPosition(cameraWorldPos);
-            mesh.lookAt(cameraWorldPos);
+            // Hacer que el panel mire siempre hacia el centro fijo de rotación
+            mesh.lookAt(rotationCenter);
             mesh.userData.answer = answersArray[i];
             answers.push(mesh);
             scene.add(mesh);
@@ -521,14 +523,13 @@
         // Actualización de la posición de los paneles de respuesta
         answers.forEach((panel, index) => {
           if (rotationActive) {
+            // Usar la velocidad individual y actualizar el ángulo sin depender de la posición actual de la cámara
             const newAngle = panel.userData.initialAngle + panel.userData.rotationSpeed * timestamp;
-            const cameraPos = new THREE.Vector3();
-            camera.getWorldPosition(cameraPos);
             const radius = panel.userData.radius || 0.8;
-            const newX = cameraPos.x + radius * Math.sin(newAngle);
-            const newZ = cameraPos.z - radius * Math.cos(newAngle);
+            const newX = rotationCenter.x + radius * Math.sin(newAngle);
+            const newZ = rotationCenter.z - radius * Math.cos(newAngle);
             panel.position.set(newX, panel.userData.heightOffset, newZ);
-            panel.lookAt(cameraPos);
+            panel.lookAt(rotationCenter);
           } else {
             const baseY = originalAnswerTransforms[index].position.y;
             panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
