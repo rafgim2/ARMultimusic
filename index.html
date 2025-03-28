@@ -101,17 +101,17 @@
 
       // Mallas en AR: cuenta atrás y score
       let countdownMesh = null,
-        countdownCanvas = null,
-        countdownCtx = null,
-        countdownTexture = null;
+          countdownCanvas = null,
+          countdownCtx = null,
+          countdownTexture = null;
       let scoreMesh = null,
-        scoreCanvas = null,
-        scoreCtx = null,
-        scoreTexture = null;
+          scoreCanvas = null,
+          scoreCtx = null,
+          scoreTexture = null;
 
       // Botón final: se mantiene solo el de Reiniciar
       let restartButtonMesh = null,
-        finalMessageMesh = null;
+          finalMessageMesh = null;
 
       // Número de respuestas seleccionado
       let selectedNumAnswers = 4;
@@ -230,10 +230,9 @@
           '</div>';
 
         // Agregar el listener para el botón de rotación
-        setTimeout(() => { // Se utiliza setTimeout para asegurarse de que el botón ya existe en el DOM
+        setTimeout(() => {
           document.getElementById('toggleRotation').addEventListener('click', function() {
             rotationActive = !rotationActive;
-            // Si está activo, el botón se pone verde; si se desactiva, vuelve a gris
             this.style.backgroundColor = rotationActive ? 'green' : 'grey';
           });
         }, 0);
@@ -387,6 +386,7 @@
           const geometry = new THREE.PlaneGeometry(0.6, 0.15);
           const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
           questionMesh = new THREE.Mesh(geometry, material);
+          // La pregunta se ubica en y = 0.3 para evitar que las respuestas la tapen
           questionMesh.position.set(0, 0.3, -0.8);
           scene.add(questionMesh);
         }
@@ -445,6 +445,17 @@
               // Guardar el ángulo inicial y el radio para la rotación
               mesh.userData.initialAngle = angle;
               mesh.userData.radius = radius;
+              // Asignar una velocidad aleatoria entre 0.0005 y 0.002, con posibilidad de girar en sentido opuesto
+              mesh.userData.rotationSpeed = 0.0005 + Math.random() * 0.0015;
+              if (Math.random() < 0.5) {
+                mesh.userData.rotationSpeed *= -1;
+              }
+              // Asignar un offset vertical que no alcance la altura de la pregunta (0.3)
+              if (Math.random() < 0.5) {
+                mesh.userData.heightOffset = 0.1 + Math.random() * (0.25 - 0.1);
+              } else {
+                mesh.userData.heightOffset = 0.35 + Math.random() * (0.5 - 0.35);
+              }
               const cameraWorldPos = new THREE.Vector3();
               camera.getWorldPosition(cameraWorldPos);
               const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -560,21 +571,15 @@
         // Actualización de la posición de los paneles de respuesta:
         answers.forEach((panel, index) => {
           if (rotationActive) {
-            const rotationSpeed = 0.001; // Velocidad de rotación (ajusta según se necesite)
+            // Usamos la velocidad individual asignada y actualizamos el ángulo
+            const newAngle = panel.userData.initialAngle + panel.userData.rotationSpeed * timestamp;
             const cameraPos = new THREE.Vector3();
             camera.getWorldPosition(cameraPos);
-            // Asignar una altura base aleatoria si aún no se ha asignado
-            if (panel.userData.heightOffset === undefined) {
-              const baseY = originalAnswerTransforms[index].position.y;
-              panel.userData.heightOffset = baseY + (Math.random() - 0.5) * 0.5;
-            }
-            // Nuevo ángulo = ángulo inicial + incremento según el tiempo
-            const newAngle = panel.userData.initialAngle + rotationSpeed * timestamp;
             const radius = panel.userData.radius || 0.8;
             const newX = cameraPos.x + radius * Math.sin(newAngle);
             const newZ = cameraPos.z - radius * Math.cos(newAngle);
+            // Usar el offset vertical previamente asignado (que evita la altura 0.3 de la pregunta)
             panel.position.set(newX, panel.userData.heightOffset, newZ);
-            // Hacer que el panel mire siempre al usuario
             panel.lookAt(cameraPos);
           } else {
             const baseY = originalAnswerTransforms[index].position.y;
