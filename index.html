@@ -325,7 +325,7 @@
         scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
         scoreCtx.textAlign = "center";
         scoreCtx.textBaseline = "middle";
-        scoreCtx.fillText(Aciertos: ${correctCount} | Fallos: ${wrongCount}, scoreCanvas.width / 2, scoreCanvas.height / 2);
+        scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
         scoreTexture.needsUpdate = true;
       }
 
@@ -333,7 +333,7 @@
         const a = Math.floor(Math.random() * 10) + 1;
         const b = Math.floor(Math.random() * 10) + 1;
         correctAnswer = a * b;
-        questionText = ¿Cuánto es ${a} x ${b}?;
+        questionText = `¿Cuánto es ${a} x ${b}?`;
         if (questionMesh) {
           scene.remove(questionMesh);
           questionMesh = null;
@@ -690,8 +690,8 @@
         gameOverCtx.textBaseline = "middle";
         gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 30 * resolutionFactor);
         gameOverCtx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
-        gameOverCtx.fillText(Aciertos: ${correctCount}, gameOverCanvas.width / 2, 65 * resolutionFactor);
-        gameOverCtx.fillText(Fallos: ${wrongCount}, gameOverCanvas.width / 2, 100 * resolutionFactor);
+        gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 65 * resolutionFactor);
+        gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 100 * resolutionFactor);
         const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
         gameOverTexture.minFilter = THREE.LinearFilter;
         gameOverTexture.magFilter = THREE.LinearFilter;
