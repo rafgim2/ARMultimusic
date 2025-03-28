@@ -49,6 +49,10 @@
       #overlay .respuestas-container select {
         font-size: 14px;
       }
+      /* Contenedor para el botón de rotación */
+      #overlay .rotation-container {
+        margin-bottom: 20px;
+      }
       /* Estilos responsivos para la imagen */
       #overlay img {
         border-radius: 20px;
@@ -124,6 +128,9 @@
 
       // Factor para mejorar la resolución de los canvas (multiplicador)
       const resolutionFactor = 4;
+
+      // Variable para activar el modo de rotación
+      let rotationActive = false;
 
       // Función para dibujar un rectángulo redondeado sin sombra
       function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -217,7 +224,19 @@
               '<option value="9">9</option>' +
               '<option value="10">10</option>' +
             '</select>' +
+          '</div>' +
+          '<div class="rotation-container">' +
+            '<button id="toggleRotation" style="width: 150px; height: 50px; font-size: 16px; background-color: grey; color: white; margin-bottom:20px;">Activar rotación</button>' +
           '</div>';
+
+        // Agregar el listener para el botón de rotación
+        setTimeout(() => { // Se utiliza setTimeout para asegurarse de que el botón ya existe en el DOM
+          document.getElementById('toggleRotation').addEventListener('click', function() {
+            rotationActive = !rotationActive;
+            // Si está activo, el botón se pone verde; si se desactiva, vuelve a gris
+            this.style.backgroundColor = rotationActive ? 'green' : 'grey';
+          });
+        }, 0);
 
         // Crear el botón AR con estilos personalizados
         const arButton = ARButton.createButton(renderer, { requiredFeatures });
@@ -423,6 +442,9 @@
               const x = radius * Math.sin(angle);
               const z = -radius * Math.cos(angle);
               mesh.position.set(x, 0, z);
+              // Guardar el ángulo inicial y el radio para la rotación
+              mesh.userData.initialAngle = angle;
+              mesh.userData.radius = radius;
               const cameraWorldPos = new THREE.Vector3();
               camera.getWorldPosition(cameraWorldPos);
               const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -535,10 +557,29 @@
       function render(timestamp, xrFrame) {
         renderer.render(scene, camera);
 
-        // Efecto de flotación para los paneles de respuesta:
+        // Actualización de la posición de los paneles de respuesta:
         answers.forEach((panel, index) => {
-          const baseY = originalAnswerTransforms[index].position.y;
-          panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
+          if (rotationActive) {
+            const rotationSpeed = 0.001; // Velocidad de rotación (ajusta según se necesite)
+            const cameraPos = new THREE.Vector3();
+            camera.getWorldPosition(cameraPos);
+            // Asignar una altura base aleatoria si aún no se ha asignado
+            if (panel.userData.heightOffset === undefined) {
+              const baseY = originalAnswerTransforms[index].position.y;
+              panel.userData.heightOffset = baseY + (Math.random() - 0.5) * 0.5;
+            }
+            // Nuevo ángulo = ángulo inicial + incremento según el tiempo
+            const newAngle = panel.userData.initialAngle + rotationSpeed * timestamp;
+            const radius = panel.userData.radius || 0.8;
+            const newX = cameraPos.x + radius * Math.sin(newAngle);
+            const newZ = cameraPos.z - radius * Math.cos(newAngle);
+            panel.position.set(newX, panel.userData.heightOffset, newZ);
+            // Hacer que el panel mire siempre al usuario
+            panel.lookAt(cameraPos);
+          } else {
+            const baseY = originalAnswerTransforms[index].position.y;
+            panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
+          }
         });
 
         if (gameReady && !countdownStarted) {
