@@ -535,6 +535,12 @@
       function render(timestamp, xrFrame) {
         renderer.render(scene, camera);
 
+        // Efecto de flotación para los paneles de respuesta:
+        answers.forEach((panel, index) => {
+          const baseY = originalAnswerTransforms[index].position.y;
+          panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
+        });
+
         if (gameReady && !countdownStarted) {
           startCountdown();
           const timerSound = document.getElementById('timerSound');
