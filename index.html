@@ -10,7 +10,6 @@
       overflow: hidden;
       font-family: sans-serif;
     }
-    /* Overlay del menú inicial */
     #overlay {
       position: absolute;
       padding-top: 100px;
@@ -34,20 +33,19 @@
       color: blue;
       text-decoration: none;
     }
-    #overlay .respuestas-container {
+    .respuestas-container {
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 20px;
     }
-    #overlay .respuestas-container label {
+    .respuestas-container label {
       font-size: 14px;
       color: black;
     }
-    #overlay .respuestas-container select {
+    .respuestas-container select {
       font-size: 14px;
     }
-    /* Imagen responsiva */
     #overlay img {
       border-radius: 20px;
       max-width: 15%;
@@ -82,7 +80,6 @@
 </head>
 
 <body>
-  <!-- Audios: acierto, error, timer y beep -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
@@ -105,21 +102,15 @@
     let wrongCount = 0;
 
     let gameStartTime = 0;
-    const gameDuration = 60; // segundos
+    const gameDuration = 60; // en segundos
     let gameOver = false;
 
-    let countdownMesh = null,
-        countdownCanvas = null,
-        countdownCtx = null,
-        countdownTexture = null;
-    let scoreMesh = null,
-        scoreCanvas = null,
-        scoreCtx = null,
-        scoreTexture = null;
+    let countdownMesh, countdownCanvas, countdownCtx, countdownTexture;
+    let scoreMesh, scoreCanvas, scoreCtx, scoreTexture;
 
     let voiceButtonMesh = null;   
     let restartButtonMesh = null; 
-    let leaderboardMesh = null;   
+    let leaderboardMesh = null;
 
     let selectedNumAnswers = 4;
 
@@ -130,9 +121,9 @@
 
     const resolutionFactor = 4;
 
-    // =========================================================
-    //             FUNCIONES GRÁFICAS DE APOYO
-    // =========================================================
+    //==================================================
+    //   Funciones gráficas de apoyo (roundedRect, etc.)
+    //==================================================
 
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
@@ -163,9 +154,9 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    // =========================================================
-    //               INICIALIZACIÓN DE LA ESCENA
-    // =========================================================
+    //==================================================
+    //           Inicialización de la escena
+    //==================================================
 
     function init() {
       scene = new THREE.Scene();
@@ -209,15 +200,17 @@
       if (arButton.parentNode) {
         arButton.parentNode.removeChild(arButton);
       }
-      arButton.style.position = 'absolute';
-      arButton.style.top = '450px';
-      arButton.style.left = '100%';
-      arButton.style.transform = 'translateX(0%)';
-      arButton.style.width = '150px';
-      arButton.style.height = '50px';
-      arButton.style.fontSize = '16px';
-      arButton.style.backgroundColor = 'green';
-      arButton.style.color = 'white';
+      Object.assign(arButton.style, {
+        position: 'absolute',
+        top: '450px',
+        left: '100%',
+        transform: 'translateX(0%)',
+        width: '150px',
+        height: '50px',
+        fontSize: '16px',
+        backgroundColor: 'green',
+        color: 'white',
+      });
       overlay.appendChild(arButton);
 
       document.body.appendChild(overlay);
@@ -239,9 +232,9 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // =========================================================
-    //         CONTEO REGRESIVO Y MARCADORES EN PANTALLA
-    // =========================================================
+    //==================================================
+    //      Conteo regresivo y display de marcadores
+    //==================================================
 
     function startCountdown() {
       gameStartTime = performance.now();
@@ -280,7 +273,7 @@
       const elapsed = (performance.now() - gameStartTime) / 1000;
       const remaining = Math.max(0, gameDuration - elapsed);
       const seconds = Math.floor(remaining);
-      let timeColor = remaining <= 10 ? "red" : "#FFFFFF";
+      const timeColor = remaining <= 10 ? "red" : "#FFFFFF";
       countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
 
       countdownCtx.fillStyle = timeColor;
@@ -294,13 +287,13 @@
       );
       countdownTexture.needsUpdate = true;
 
+      // Sonido beep en los últimos 10 seg
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
         beepSound.play().catch((e) => console.error(e));
         beepPlayed = true;
       }
-
       return remaining;
     }
 
@@ -314,9 +307,9 @@
       scoreTexture.needsUpdate = true;
     }
 
-    // =========================================================
-    //            GENERADOR DE PREGUNTAS Y RESPUESTAS
-    // =========================================================
+    //==================================================
+    //      Generador de preguntas y respuestas
+    //==================================================
 
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
@@ -383,6 +376,7 @@
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
 
+          // Orientar el panel hacia la cámara
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -465,9 +459,9 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
 
-    // =========================================================
-    //                 EFECTO DE CHISPAS
-    // =========================================================
+    //==================================================
+    //           Efecto de chispas (feedback)
+    //==================================================
 
     function createSparksEffect(position) {
       const count = 100;
@@ -507,9 +501,9 @@
       });
     }
 
-    // =========================================================
-    //               BUCLE DE ANIMACIÓN PRINCIPAL
-    // =========================================================
+    //==================================================
+    //               Bucle de animación
+    //==================================================
 
     function animate() {
       renderer.setAnimationLoop(render);
@@ -518,13 +512,13 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
 
-      // Efecto de flotación para los paneles de respuesta
+      // Efecto flotación
       answers.forEach((panel, index) => {
         const baseY = originalAnswerTransforms[index].position.y;
         panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
       });
 
-      // Iniciar conteo regresivo
+      // Iniciar timer una vez
       if (gameReady && !countdownStarted) {
         startCountdown();
         const timerSound = document.getElementById('timerSound');
@@ -533,7 +527,7 @@
         countdownStarted = true;
       }
 
-      // Actualizar chispas
+      // Actualizar efecto chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -557,7 +551,7 @@
         }
       }
 
-      // Actualizar tiempo y puntuación
+      // Actualizar tiempo/puntuación
       if (!gameOver) {
         const remaining = updateCountdown();
         updateScoreDisplay();
@@ -566,7 +560,7 @@
         }
       }
 
-      // Sesión XR y puntos de interacción
+      // Puntos de interacción (manos o "cámara" como fallback)
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -589,14 +583,14 @@
         }
       }
       if (interactionPoints.length === 0) {
-        let cameraPos = new THREE.Vector3();
+        const cameraPos = new THREE.Vector3();
         camera.getWorldPosition(cameraPos);
         interactionPoints.push(cameraPos);
       }
 
       // Lógica de colisión
       if (!gameOver) {
-        for (let panel of answers) {
+        for (const panel of answers) {
           const panelPos = new THREE.Vector3();
           panel.getWorldPosition(panelPos);
           for (const point of interactionPoints) {
@@ -605,28 +599,26 @@
               hasCollided = true;
               if (panel.userData.answer === correctAnswer) {
                 correctCount++;
-                const successSound = document.getElementById('successSound');
-                const successClone = successSound.cloneNode();
-                successClone.play().catch((e) => console.error(e));
+                const successSound = document.getElementById('successSound').cloneNode();
+                successSound.play().catch((e) => console.error(e));
                 createSparksEffect(panel.position);
                 if (questionMesh) questionMesh.visible = false;
-                answers.forEach((a) => (a.visible = false));
+                answers.forEach(a => a.visible = false);
                 setTimeout(() => {
                   if (!gameOver) {
                     generateQuestion();
                     if (questionMesh) questionMesh.visible = true;
-                    answers.forEach((a) => (a.visible = true));
+                    answers.forEach(a => a.visible = true);
                   }
                   hasCollided = false;
                 }, 1000);
               } else {
                 wrongCount++;
-                const errorSound = document.getElementById('errorSound');
-                const errorClone = errorSound.cloneNode();
-                errorClone.play().catch((e) => console.error(e));
-                answers.forEach((a) => a.material.color.set(0xff0000));
+                const errorSound = document.getElementById('errorSound').cloneNode();
+                errorSound.play().catch((e) => console.error(e));
+                answers.forEach(a => a.material.color.set(0xff0000));
                 setTimeout(() => {
-                  answers.forEach((a) => a.material.color.set(0xffffff));
+                  answers.forEach(a => a.material.color.set(0xffffff));
                   hasCollided = false;
                 }, 500);
               }
@@ -644,7 +636,6 @@
               hasCollided = true;
               createSparksEffect(voiceButtonMesh.position);
               startVoiceRecognition();
-              // Ocultamos el botón tras iniciar la escucha
               setTimeout(() => {
                 voiceButtonMesh.visible = false;
                 hasCollided = false;
@@ -659,9 +650,8 @@
           for (const point of interactionPoints) {
             if (point.distanceTo(buttonPos) < collisionThreshold && !hasCollided) {
               hasCollided = true;
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch((e) => console.error(e));
+              const successSound = document.getElementById('successSound').cloneNode();
+              successSound.play().catch((e) => console.error(e));
               createSparksEffect(restartButtonMesh.position);
               restartButtonMesh.visible = false;
               setTimeout(() => {
@@ -675,9 +665,9 @@
       }
     }
 
-    // =========================================================
-    //                    FIN DEL JUEGO
-    // =========================================================
+    //==================================================
+    //               Fin de juego/Reinicio
+    //==================================================
 
     function endGame() {
       gameOver = true;
@@ -685,10 +675,10 @@
       if (countdownMesh) scene.remove(countdownMesh);
       if (scoreMesh) scene.remove(scoreMesh);
 
-      answers.forEach((panel) => scene.remove(panel));
+      answers.forEach(panel => scene.remove(panel));
       answers = [];
 
-      // Creamos solo 2 paneles
+      // Solo 2 paneles:
       voiceButtonMesh = createButton("Habla tu Nombre");
       voiceButtonMesh.position.set(0, 0, -0.8);
       scene.add(voiceButtonMesh);
@@ -717,8 +707,7 @@
       texture.magFilter = THREE.LinearFilter;
       const geom = new THREE.PlaneGeometry(0.3, 0.1);
       const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const mesh = new THREE.Mesh(geom, mat);
-      return mesh;
+      return new THREE.Mesh(geom, mat);
     }
 
     function restartGame() {
@@ -748,9 +737,9 @@
       gameReady = true;
     }
 
-    // =========================================================
-    //            RECONOCIMIENTO DE VOZ (NOMBRE)
-    // =========================================================
+    //==================================================
+    //        Reconocimiento de voz del nombre
+    //==================================================
 
     function startVoiceRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -774,9 +763,9 @@
       };
     }
 
-    // =========================================================
-    //           FIRESTORE: GUARDAR Y MOSTRAR RANKING
-    // =========================================================
+    //==================================================
+    //   Firestore: guardar y mostrar clasificación
+    //==================================================
 
     async function submitScoreToFirestore(playerName) {
       try {
@@ -785,11 +774,10 @@
           name: playerName,
           correctCount: correctCount,
           wrongCount: wrongCount,
-          numAnswers: selectedNumAnswers, // Asegúrate de que sea número
+          numAnswers: selectedNumAnswers,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         console.log("Datos guardados en Firestore");
-        // Mostrar la clasificación
         showLeaderboard();
       } catch (error) {
         console.error("Error al guardar en Firestore:", error);
@@ -797,13 +785,12 @@
     }
 
     async function showLeaderboard() {
-      // Elimina un ranking anterior si existe
+      // Quitamos ranking anterior si está
       if (leaderboardMesh) {
         scene.remove(leaderboardMesh);
         leaderboardMesh = null;
       }
       try {
-        // Consulta Firestore con where() y orderBy()
         const snapshot = await db.collection("leaderboard")
           .where("numAnswers", "==", selectedNumAnswers)
           .orderBy("correctCount", "desc")
@@ -811,31 +798,39 @@
           .get();
 
         console.log("Documentos en la consulta: ", snapshot.size);
-
         const docs = snapshot.docs;
+
         let textLines = [];
         textLines.push(`TOP 10 - Respuestas: ${selectedNumAnswers}`);
         textLines.push("Pos | Nombre | Aciertos-Fallos");
 
         let pos = 1;
-        for (let doc of docs) {
+        for (const doc of docs) {
           const data = doc.data();
           const line = `${pos}. ${data.name} - ${data.correctCount}-${data.wrongCount}`;
           textLines.push(line);
           pos++;
         }
+
         if (docs.length === 0) {
-          textLines.push("No hay registros todavía");
+          textLines.push("No hay registros todavía...");
         }
-        // Creamos el panel
+
         leaderboardMesh = createLeaderboardPanel(textLines);
-        // Lo situamos un poco más cerca
-        leaderboardMesh.position.set(0, 0.25, -0.8);
+
+        // ============= CLAVE: Ponerlo delante y mirándonos =============
+        leaderboardMesh.position.set(0, 0, -1.2); // Un poco más lejos
         scene.add(leaderboardMesh);
+
+        // Hacer que mire hacia la cámara
+        const cameraWorldPos = new THREE.Vector3();
+        camera.getWorldPosition(cameraWorldPos);
+        leaderboardMesh.lookAt(cameraWorldPos);
+
       } catch (error) {
         console.error("Error al obtener leaderboard:", error);
-        // Si aquí te pide un índice, ve a la consola y créalo con los campos:
-        //   numAnswers (ASC/DESC, da igual en ==) y correctCount (DESC)
+        // Si ves un error de "requires an index", crea el índice en la consola:
+        // Fields: numAnswers (ASC) y correctCount (DESC)
       }
     }
 
@@ -865,113 +860,98 @@
 
       const geom = new THREE.PlaneGeometry(0.8, 0.8);
       const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const mesh = new THREE.Mesh(geom, mat);
-      return mesh;
+      return new THREE.Mesh(geom, mat);
     }
 
-    // =========================================================
-    //            EVENTOS TOUCH PARA MÓVILES
-    // =========================================================
+    //==================================================
+    //   Eventos táctiles (para móviles)
+    //==================================================
 
-    window.addEventListener(
-      'touchstart',
-      function unlockAudio() {
-        const successEl = document.getElementById('successSound');
-        const errorEl = document.getElementById('errorSound');
-        [successEl, errorEl].forEach((audioEl) => {
-          audioEl
-            .play()
-            .then(() => {
-              audioEl.pause();
-              audioEl.currentTime = 0;
-            })
-            .catch((e) => console.error(e));
-        });
-      },
-      { once: true }
-    );
+    window.addEventListener('touchstart', function unlockAudio() {
+      // Desbloquea el audio en iOS/Android
+      const successEl = document.getElementById('successSound');
+      const errorEl = document.getElementById('errorSound');
+      [successEl, errorEl].forEach((audioEl) => {
+        audioEl.play().then(() => {
+          audioEl.pause();
+          audioEl.currentTime = 0;
+        }).catch((e) => console.error(e));
+      });
+    }, { once: true });
 
-    window.addEventListener(
-      'touchstart',
-      function (event) {
-        if (!/Mobi|Android/i.test(navigator.userAgent)) return;
-        const touch = event.touches[0];
-        const x = (touch.clientX / window.innerWidth) * 2 - 1;
-        const y = -(touch.clientY / window.innerHeight) * 2 + 1;
-        const mouseVector = new THREE.Vector2(x, y);
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouseVector, camera);
+    window.addEventListener('touchstart', function (event) {
+      if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = -(touch.clientY / window.innerHeight) * 2 + 1;
+      const mouseVector = new THREE.Vector2(x, y);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseVector, camera);
 
-        if (!gameOver) {
-          const intersects = raycaster.intersectObjects(answers);
-          if (intersects.length > 0 && !hasCollided) {
-            const panel = intersects[0].object;
-            hasCollided = true;
-            if (panel.userData.answer === correctAnswer) {
-              correctCount++;
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch((e) => console.error(e));
-              createSparksEffect(panel.position);
-              if (questionMesh) questionMesh.visible = false;
-              answers.forEach((a) => (a.visible = false));
-              setTimeout(() => {
-                if (!gameOver) {
-                  generateQuestion();
-                  if (questionMesh) questionMesh.visible = true;
-                  answers.forEach((a) => (a.visible = true));
-                }
-                hasCollided = false;
-              }, 1000);
-            } else {
-              wrongCount++;
-              const errorSound = document.getElementById('errorSound');
-              const errorClone = errorSound.cloneNode();
-              errorClone.play().catch((e) => console.error(e));
-              answers.forEach((a) => a.material.color.set(0xff0000));
-              setTimeout(() => {
-                answers.forEach((a) => a.material.color.set(0xffffff));
-                hasCollided = false;
-              }, 500);
-            }
-          }
-        } else {
-          let objects = [];
-          if (voiceButtonMesh && voiceButtonMesh.visible) objects.push(voiceButtonMesh);
-          if (restartButtonMesh && restartButtonMesh.visible) objects.push(restartButtonMesh);
-
-          const intersects = raycaster.intersectObjects(objects);
-          if (intersects.length > 0 && !hasCollided) {
-            const obj = intersects[0].object;
-            hasCollided = true;
-            if (obj === voiceButtonMesh) {
-              createSparksEffect(obj.position);
-              startVoiceRecognition();
-              setTimeout(() => {
-                voiceButtonMesh.visible = false;
-                hasCollided = false;
-              }, 800);
-            } else if (obj === restartButtonMesh) {
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch((e) => console.error(e));
-              createSparksEffect(obj.position);
-              obj.visible = false;
-              setTimeout(() => {
-                restartGame();
-                hasCollided = false;
-              }, 1000);
-            }
+      if (!gameOver) {
+        const intersects = raycaster.intersectObjects(answers);
+        if (intersects.length > 0 && !hasCollided) {
+          const panel = intersects[0].object;
+          hasCollided = true;
+          if (panel.userData.answer === correctAnswer) {
+            correctCount++;
+            const successClone = document.getElementById('successSound').cloneNode();
+            successClone.play().catch(e => console.error(e));
+            createSparksEffect(panel.position);
+            if (questionMesh) questionMesh.visible = false;
+            answers.forEach(a => a.visible = false);
+            setTimeout(() => {
+              if (!gameOver) {
+                generateQuestion();
+                if (questionMesh) questionMesh.visible = true;
+                answers.forEach(a => a.visible = true);
+              }
+              hasCollided = false;
+            }, 1000);
+          } else {
+            wrongCount++;
+            const errorClone = document.getElementById('errorSound').cloneNode();
+            errorClone.play().catch(e => console.error(e));
+            answers.forEach(a => a.material.color.set(0xff0000));
+            setTimeout(() => {
+              answers.forEach(a => a.material.color.set(0xffffff));
+              hasCollided = false;
+            }, 500);
           }
         }
-      },
-      false
-    );
+      } else {
+        let objects = [];
+        if (voiceButtonMesh && voiceButtonMesh.visible) objects.push(voiceButtonMesh);
+        if (restartButtonMesh && restartButtonMesh.visible) objects.push(restartButtonMesh);
 
-    // =========================================================
-    //               INICIO DE TODO
-    // =========================================================
+        const intersects = raycaster.intersectObjects(objects);
+        if (intersects.length > 0 && !hasCollided) {
+          const obj = intersects[0].object;
+          hasCollided = true;
+          if (obj === voiceButtonMesh) {
+            createSparksEffect(obj.position);
+            startVoiceRecognition();
+            setTimeout(() => {
+              voiceButtonMesh.visible = false;
+              hasCollided = false;
+            }, 800);
+          } else if (obj === restartButtonMesh) {
+            const successClone = document.getElementById('successSound').cloneNode();
+            successClone.play().catch(e => console.error(e));
+            createSparksEffect(obj.position);
+            obj.visible = false;
+            setTimeout(() => {
+              restartGame();
+              hasCollided = false;
+            }, 1000);
+          }
+        }
+      }
+    }, false);
 
+    //==================================================
+    //               Arranque
+    //==================================================
     init();
     animate();
   </script>
