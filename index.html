@@ -75,7 +75,7 @@
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
       import { getFirestore, collection, addDoc, query, orderBy, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-      // Configuración de Firebase (datos que ya proporcionaste)
+      // Configuración de Firebase (datos proporcionados)
       const firebaseConfig = {
         apiKey: "AIzaSyD5EAMg-0p54f8bPq8SVdZ_ePg5Xso3cmg",
         authDomain: "arm1-acbba.firebaseapp.com",
@@ -680,6 +680,29 @@
               }
             }
           }
+          // Si el juego ha finalizado, incluir el panel de voz en el raycasting
+          if (voiceInputMesh) {
+            const panelPos = new THREE.Vector3();
+            voiceInputMesh.getWorldPosition(panelPos);
+            for (const point of interactionPoints) {
+              const distance = point.distanceTo(panelPos);
+              if (distance < collisionThreshold && !hasCollided) {
+                hasCollided = true;
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch((e) => console.error(e));
+                createSparksEffect(voiceInputMesh.position);
+                scene.remove(voiceInputMesh);
+                voiceInputMesh = null;
+                // Iniciar reconocimiento de voz
+                startVoiceInput();
+                setTimeout(() => {
+                  hasCollided = false;
+                }, 1000);
+                break;
+              }
+            }
+          }
         }
       }
 
@@ -792,8 +815,7 @@
         voiceInputMesh = new THREE.Mesh(geometry, material);
         voiceInputMesh.position.set(0, 0.4, -0.8);
         scene.add(voiceInputMesh);
-        // Iniciar el reconocimiento de voz
-        startVoiceInput();
+        // No se inicia el reconocimiento aquí, se espera a que el usuario pulse el panel.
       }
 
       // Al finalizar el juego: quitar paneles de preguntas/respuestas, mostrar resultados y panel de entrada por voz
@@ -828,7 +850,6 @@
         finalMessageMesh.position.set(0, 0, -0.8);
         scene.add(finalMessageMesh);
 
-        // Eliminar paneles de entrada previos (si existiesen)
         if (voiceInputMesh) scene.remove(voiceInputMesh);
         if (leaderboardMesh) scene.remove(leaderboardMesh);
 
@@ -878,6 +899,7 @@
         { once: true }
       );
 
+      // Event listener para detectar toques en AR (incluye el panel de voz y botón de reinicio)
       window.addEventListener(
         'touchstart',
         function (event) {
@@ -892,43 +914,29 @@
           if (!gameOver) {
             objectsToIntersect = answers;
           } else {
-            if (restartButtonMesh) {
-              objectsToIntersect = [restartButtonMesh];
-            }
+            if (restartButtonMesh) objectsToIntersect.push(restartButtonMesh);
+            if (voiceInputMesh) objectsToIntersect.push(voiceInputMesh);
           }
           const intersects = raycaster.intersectObjects(objectsToIntersect);
           if (intersects.length > 0 && !hasCollided) {
             const panel = intersects[0].object;
             hasCollided = true;
-            if (!gameOver) {
-              if (panel.userData.answer === correctAnswer) {
-                correctCount++;
-                const successSound = document.getElementById('successSound');
-                const successClone = successSound.cloneNode();
-                successClone.play().catch((e) => console.error(e));
-                createSparksEffect(panel.position);
-                if (questionMesh) questionMesh.visible = false;
-                answers.forEach((a) => (a.visible = false));
-                setTimeout(() => {
-                  if (!gameOver) {
-                    generateQuestion();
-                    if (questionMesh) questionMesh.visible = true;
-                    answers.forEach((a) => (a.visible = true));
-                  }
-                  hasCollided = false;
-                }, 1000);
-              } else {
-                wrongCount++;
-                const errorSound = document.getElementById('errorSound');
-                const errorClone = errorSound.cloneNode();
-                errorClone.play().catch((e) => console.error(e));
-                answers.forEach((a) => a.material.color.set(0xff0000));
-                setTimeout(() => {
-                  answers.forEach((a) => a.material.color.set(0xffffff));
-                  hasCollided = false;
-                }, 500);
-              }
-            } else {
+            // Si se toca el panel de "Di tu nombre", iniciar el reconocimiento de voz
+            if (panel === voiceInputMesh) {
+              const successSound = document.getElementById('successSound');
+              const successClone = successSound.cloneNode();
+              successClone.play().catch((e) => console.error(e));
+              createSparksEffect(panel.position);
+              scene.remove(voiceInputMesh);
+              voiceInputMesh = null;
+              startVoiceInput();
+              setTimeout(() => {
+                hasCollided = false;
+              }, 1000);
+              return;
+            }
+            // Si se toca el botón de reinicio
+            if (panel === restartButtonMesh) {
               const successSound = document.getElementById('successSound');
               const successClone = successSound.cloneNode();
               successClone.play().catch((e) => console.error(e));
@@ -938,6 +946,7 @@
                 restartGame();
                 hasCollided = false;
               }, 1000);
+              return;
             }
           }
         },
