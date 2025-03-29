@@ -80,6 +80,7 @@
 </head>
 
 <body>
+  <!-- Audios -->
   <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
   <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
   <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
@@ -98,18 +99,20 @@
     const collisionThreshold = 0.2;
     const sparksSystems = [];
 
+    // Marcadores
     let correctCount = 0;
     let wrongCount = 0;
 
+    // Tiempo de juego
     let gameStartTime = 0;
-    const gameDuration = 60; // en segundos
+    const gameDuration = 60; // segundos
     let gameOver = false;
 
     let countdownMesh, countdownCanvas, countdownCtx, countdownTexture;
     let scoreMesh, scoreCanvas, scoreCtx, scoreTexture;
 
-    let voiceButtonMesh = null;   
-    let restartButtonMesh = null; 
+    let voiceButtonMesh = null;
+    let restartButtonMesh = null;
     let leaderboardMesh = null;
 
     let selectedNumAnswers = 4;
@@ -121,9 +124,7 @@
 
     const resolutionFactor = 4;
 
-    //==================================================
-    //   Funciones gráficas de apoyo (roundedRect, etc.)
-    //==================================================
+    // =================== Funciones gráficas de apoyo ===================
 
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
@@ -154,9 +155,7 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    //==================================================
-    //           Inicialización de la escena
-    //==================================================
+    // =================== Inicialización AR ===================
 
     function init() {
       scene = new THREE.Scene();
@@ -232,9 +231,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    //==================================================
-    //      Conteo regresivo y display de marcadores
-    //==================================================
+    // =================== Conteo regresivo y scoreboard ===================
 
     function startCountdown() {
       gameStartTime = performance.now();
@@ -287,7 +284,7 @@
       );
       countdownTexture.needsUpdate = true;
 
-      // Sonido beep en los últimos 10 seg
+      // Beep final
       if (remaining <= 10 && !beepPlayed) {
         const beepSound = document.getElementById('beepSound');
         beepSound.currentTime = 0;
@@ -301,15 +298,13 @@
       scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
       scoreCtx.fillStyle = "#FFFFFF";
       scoreCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-      scoreCtx.textAlign = "center";
-      scoreCtx.textBaseline = "middle";
+      scoreCtx.textAlign = 'center';
+      scoreCtx.textBaseline = 'middle';
       scoreCtx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, scoreCanvas.width / 2, scoreCanvas.height / 2);
       scoreTexture.needsUpdate = true;
     }
 
-    //==================================================
-    //      Generador de preguntas y respuestas
-    //==================================================
+    // =================== Generador de preguntas y respuestas ===================
 
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
@@ -354,6 +349,7 @@
 
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
+        // Curva para distribuir los paneles
         const minArc = 1.39626; // ~80°
         const maxArc = Math.PI; // 180°
         let arcAngle;
@@ -376,7 +372,7 @@
           const z = -radius * Math.cos(angle);
           mesh.position.set(x, 0, z);
 
-          // Orientar el panel hacia la cámara
+          // Que mire a la cámara
           const cameraWorldPos = new THREE.Vector3();
           camera.getWorldPosition(cameraWorldPos);
           const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
@@ -391,7 +387,7 @@
           });
         }
       } else {
-        // Reutiliza los paneles actualizando el texto
+        // Actualizamos contenido
         const wrongAnswers = new Set();
         while (wrongAnswers.size < numAnswers - 1) {
           let wrong = Math.floor(Math.random() * 100) + 1;
@@ -459,9 +455,7 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
 
-    //==================================================
-    //           Efecto de chispas (feedback)
-    //==================================================
+    // =================== Efecto chispas ===================
 
     function createSparksEffect(position) {
       const count = 100;
@@ -501,9 +495,7 @@
       });
     }
 
-    //==================================================
-    //               Bucle de animación
-    //==================================================
+    // =================== Bucle de animación ===================
 
     function animate() {
       renderer.setAnimationLoop(render);
@@ -512,13 +504,13 @@
     function render(timestamp, xrFrame) {
       renderer.render(scene, camera);
 
-      // Efecto flotación
+      // Efecto de flotación
       answers.forEach((panel, index) => {
         const baseY = originalAnswerTransforms[index].position.y;
         panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
       });
 
-      // Iniciar timer una vez
+      // Iniciar el countdown la primera vez
       if (gameReady && !countdownStarted) {
         startCountdown();
         const timerSound = document.getElementById('timerSound');
@@ -527,7 +519,7 @@
         countdownStarted = true;
       }
 
-      // Actualizar efecto chispas
+      // Actualizar chispas
       const currentTime = performance.now();
       for (let i = sparksSystems.length - 1; i >= 0; i--) {
         const system = sparksSystems[i];
@@ -551,7 +543,7 @@
         }
       }
 
-      // Actualizar tiempo/puntuación
+      // Actualizar el tiempo y la puntuación
       if (!gameOver) {
         const remaining = updateCountdown();
         updateScoreDisplay();
@@ -560,7 +552,7 @@
         }
       }
 
-      // Puntos de interacción (manos o "cámara" como fallback)
+      // Puntos de interacción (manos o "cámara")
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -588,7 +580,7 @@
         interactionPoints.push(cameraPos);
       }
 
-      // Lógica de colisión
+      // Colisión con respuestas o botones de final
       if (!gameOver) {
         for (const panel of answers) {
           const panelPos = new THREE.Vector3();
@@ -599,8 +591,8 @@
               hasCollided = true;
               if (panel.userData.answer === correctAnswer) {
                 correctCount++;
-                const successSound = document.getElementById('successSound').cloneNode();
-                successSound.play().catch((e) => console.error(e));
+                const successClone = document.getElementById('successSound').cloneNode();
+                successClone.play().catch((e) => console.error(e));
                 createSparksEffect(panel.position);
                 if (questionMesh) questionMesh.visible = false;
                 answers.forEach(a => a.visible = false);
@@ -614,8 +606,8 @@
                 }, 1000);
               } else {
                 wrongCount++;
-                const errorSound = document.getElementById('errorSound').cloneNode();
-                errorSound.play().catch((e) => console.error(e));
+                const errorClone = document.getElementById('errorSound').cloneNode();
+                errorClone.play().catch((e) => console.error(e));
                 answers.forEach(a => a.material.color.set(0xff0000));
                 setTimeout(() => {
                   answers.forEach(a => a.material.color.set(0xffffff));
@@ -627,7 +619,7 @@
           }
         }
       } else {
-        // Interactuar con "Habla tu nombre" o "Reiniciar"
+        // Botones "Habla tu Nombre" y "Reiniciar"
         if (voiceButtonMesh && voiceButtonMesh.visible) {
           const buttonPos = new THREE.Vector3();
           voiceButtonMesh.getWorldPosition(buttonPos);
@@ -650,8 +642,8 @@
           for (const point of interactionPoints) {
             if (point.distanceTo(buttonPos) < collisionThreshold && !hasCollided) {
               hasCollided = true;
-              const successSound = document.getElementById('successSound').cloneNode();
-              successSound.play().catch((e) => console.error(e));
+              const successClone = document.getElementById('successSound').cloneNode();
+              successClone.play().catch((e) => console.error(e));
               createSparksEffect(restartButtonMesh.position);
               restartButtonMesh.visible = false;
               setTimeout(() => {
@@ -665,9 +657,7 @@
       }
     }
 
-    //==================================================
-    //               Fin de juego/Reinicio
-    //==================================================
+    // =================== Fin de juego/Reinicio ===================
 
     function endGame() {
       gameOver = true;
@@ -678,7 +668,6 @@
       answers.forEach(panel => scene.remove(panel));
       answers = [];
 
-      // Solo 2 paneles:
       voiceButtonMesh = createButton("Habla tu Nombre");
       voiceButtonMesh.position.set(0, 0, -0.8);
       scene.add(voiceButtonMesh);
@@ -737,9 +726,7 @@
       gameReady = true;
     }
 
-    //==================================================
-    //        Reconocimiento de voz del nombre
-    //==================================================
+    // =================== Reconocimiento de voz (nombre) ===================
 
     function startVoiceRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -763,13 +750,33 @@
       };
     }
 
-    //==================================================
-    //   Firestore: guardar y mostrar clasificación
-    //==================================================
+    // =================== Firestore: guardar + mostrar ranking ===================
+
+    /**
+     * Función que coloca un mesh justo delante de la cámara a la distancia dada,
+     * y lo orienta mirando hacia la cámara.
+     */
+    function placeMeshInFrontOfCamera(mesh, distance = 1.0) {
+      // Posición de la cámara
+      const cameraPos = new THREE.Vector3();
+      camera.getWorldPosition(cameraPos);
+
+      // Dirección a la que mira la cámara
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      // Multiplicamos la dirección por la distancia deseada
+      cameraDir.multiplyScalar(distance);
+
+      // Nueva posición = cámara + dirección * distancia
+      const newPos = cameraPos.clone().add(cameraDir);
+      mesh.position.copy(newPos);
+
+      // Orientamos el mesh para que mire hacia la cámara
+      mesh.lookAt(cameraPos);
+    }
 
     async function submitScoreToFirestore(playerName) {
       try {
-        // Guardamos la partida
         await db.collection("leaderboard").add({
           name: playerName,
           correctCount: correctCount,
@@ -785,7 +792,6 @@
     }
 
     async function showLeaderboard() {
-      // Quitamos ranking anterior si está
       if (leaderboardMesh) {
         scene.remove(leaderboardMesh);
         leaderboardMesh = null;
@@ -797,7 +803,7 @@
           .limit(10)
           .get();
 
-        console.log("Documentos en la consulta: ", snapshot.size);
+        console.log("Documentos recibidos: ", snapshot.size);
         const docs = snapshot.docs;
 
         let textLines = [];
@@ -811,36 +817,35 @@
           textLines.push(line);
           pos++;
         }
-
         if (docs.length === 0) {
           textLines.push("No hay registros todavía...");
         }
 
         leaderboardMesh = createLeaderboardPanel(textLines);
 
-        // ============= CLAVE: Ponerlo delante y mirándonos =============
-        leaderboardMesh.position.set(0, 0, -1.2); // Un poco más lejos
+        // Colocamos la tabla un poco grande, p.ej. 1.2 x 1.2
+        // (Cambia en createLeaderboardPanel para que sea 1.2 en geom)
         scene.add(leaderboardMesh);
 
-        // Hacer que mire hacia la cámara
-        const cameraWorldPos = new THREE.Vector3();
-        camera.getWorldPosition(cameraWorldPos);
-        leaderboardMesh.lookAt(cameraWorldPos);
+        // Poner delante de la cámara a 1.5 metros (ajusta a gusto)
+        placeMeshInFrontOfCamera(leaderboardMesh, 1.5);
 
       } catch (error) {
         console.error("Error al obtener leaderboard:", error);
-        // Si ves un error de "requires an index", crea el índice en la consola:
-        // Fields: numAnswers (ASC) y correctCount (DESC)
+        // Si pide un índice, créalo en la consola de Firebase:
+        // Campos => numAnswers (ASC|DESC), correctCount (DESC)
       }
     }
 
     function createLeaderboardPanel(lines) {
+      // Haremos que el panel sea un poco más grande
       const canvas = document.createElement('canvas');
       canvas.width = 512 * resolutionFactor;
       canvas.height = 512 * resolutionFactor;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Panel azulado
       ctx.fillStyle = "#007BFF";
       drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
 
@@ -858,17 +863,17 @@
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
 
-      const geom = new THREE.PlaneGeometry(0.8, 0.8);
+      // Hacemos el geometry un poco más grande
+      const geom = new THREE.PlaneGeometry(1.2, 1.2);
       const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      return new THREE.Mesh(geom, mat);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.frustumCulled = false; // desactiva el culling por si a AR le da problemas
+      return mesh;
     }
 
-    //==================================================
-    //   Eventos táctiles (para móviles)
-    //==================================================
+    // =================== Eventos táctiles en móviles ===================
 
     window.addEventListener('touchstart', function unlockAudio() {
-      // Desbloquea el audio en iOS/Android
       const successEl = document.getElementById('successSound');
       const errorEl = document.getElementById('errorSound');
       [successEl, errorEl].forEach((audioEl) => {
@@ -949,9 +954,8 @@
       }
     }, false);
 
-    //==================================================
-    //               Arranque
-    //==================================================
+    // =================== Arranque ===================
+
     init();
     animate();
   </script>
