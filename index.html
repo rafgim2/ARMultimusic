@@ -5,15 +5,16 @@
     <title>AR MULTIMUSIC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <style>
+      /* Permitir scroll vertical en el body */
       body {
         margin: 0;
-        overflow: hidden;
         font-family: sans-serif;
+        /* Quitar overflow: hidden; */
+        overflow-y: auto;
       }
       /* Overlay del menú inicial */
       #overlay {
         position: absolute;
-        padding-top: 100px;
         top: 0;
         left: 0;
         width: 100%;
@@ -23,9 +24,12 @@
         flex-direction: column;
         justify-content: flex-start;
         align-items: center;
-        color: #fff;
         text-align: center;
         z-index: 10;
+        /* Permitir scroll si no entra todo */
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 20px;
       }
       #overlay a {
         font-size: 14px;
@@ -52,11 +56,34 @@
       #overlay img {
         border-radius: 20px;
         max-width: 15%;
+        margin-bottom: 10px;
       }
       @media (orientation: portrait) {
         #overlay img {
           max-width: 70%;
         }
+      }
+      /* Tabla de clasificación en el overlay */
+      #leaderboardPreview {
+        max-width: 80%;
+        max-height: 120px; /* Ajusta si necesitas más o menos alto */
+        overflow-y: auto;
+        background-color: #fff;
+        color: #000;
+        font-size: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #000;
+        border-radius: 6px;
+        padding: 4px;
+      }
+      #leaderboardPreview table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      #leaderboardPreview th, #leaderboardPreview td {
+        border: 1px solid #666;
+        padding: 4px;
+        text-align: center;
       }
     </style>
   </head>
@@ -91,6 +118,46 @@
       const appFirebase = initializeApp(firebaseConfig);
       const analytics = getAnalytics(appFirebase);
       const db = getFirestore(appFirebase);
+
+      /***** Función para cargar y mostrar el top 5 en el overlay *****/
+      async function updateLeaderboardPreview(numAnswers) {
+        const collectionName = `leaderboard_${numAnswers}`;
+        try {
+          let top5Query = query(
+            collection(db, collectionName),
+            orderBy("score", "desc"),
+            limit(5)
+          );
+          const querySnapshot = await getDocs(top5Query);
+          const results = [];
+          querySnapshot.forEach((docSnap) => {
+            results.push(docSnap.data());
+          });
+
+          const container = document.getElementById('leaderboardPreview');
+          container.innerHTML = ""; // Limpia previo
+
+          if (results.length > 0) {
+            let html = "<table>";
+            html += "<tr><th>Pos</th><th>Nombre</th><th>Puntos</th></tr>";
+            for (let i = 0; i < results.length; i++) {
+              html += `<tr>
+                <td>${i+1}</td>
+                <td>${results[i].name}</td>
+                <td>${results[i].score}</td>
+              </tr>`;
+            }
+            html += "</table>";
+            container.innerHTML = html;
+          } else {
+            container.innerHTML = "<p>No hay puntuaciones aún.</p>";
+          }
+        } catch (err) {
+          console.error("Error cargando top 5:", err);
+          document.getElementById('leaderboardPreview').innerHTML =
+            "<p>Error cargando clasificación.</p>";
+        }
+      }
 
       /***** 2) Código AR y juego *****/
       import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
@@ -147,7 +214,7 @@
       // Lista de sistemas de chispas
       const sparksSystems = [];
 
-      // Variables para manejar la tabla completa y la “paginación”
+      // Variables para manejar la tabla completa y la “paginación” (final en AR)
       let leaderboardResults = [];      
       let scoreboardStartIndex = 0;     
       const pageSize = 10;             
@@ -266,25 +333,37 @@
         // Overlay inicial
         const overlay = document.createElement('div');
         overlay.id = 'overlay';
-        overlay.innerHTML =
-          '<img src="ARM2.jpeg" alt="AR Mult" style="margin-bottom:20px;">' +
-          '<a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>' +
-          '<div class="respuestas-container">' +
-            '<label for="numAnswers">Respuestas:</label>' +
-            '<select id="numAnswers">' +
-              '<option value="4">4</option>' +
-              '<option value="5">5</option>' +
-              '<option value="6">6</option>' +
-              '<option value="7">7</option>' +
-              '<option value="8">8</option>' +
-              '<option value="9">9</option>' +
-              '<option value="10">10</option>' +
-            '</select>' +
-          '</div>' +
-          '<input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding:10px; font-size:16px; margin-bottom:20px;" maxlength="10">';
+        overlay.innerHTML = `
+          <img src="ARM2.jpeg" alt="AR Mult">
+          <a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>
+          <div class="respuestas-container">
+            <label for="numAnswers">Respuestas:</label>
+            <select id="numAnswers">
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </div>
+          <!-- Aquí va la tabla "preview" del top 5 -->
+          <div id="leaderboardPreview"></div>
+
+          <input
+            type="text"
+            id="playerName"
+            placeholder="Ingresa tu nombre"
+            style="padding:10px; font-size:16px; margin-bottom:20px;"
+            maxlength="10"
+          >
+        `;
 
         // Botón AR
-        const requiredFeatures = /Mobi|Android/i.test(navigator.userAgent) ? ['hit-test'] : ['hit-test','hand-tracking'];
+        const requiredFeatures = /Mobi|Android/i.test(navigator.userAgent)
+          ? ['hit-test']
+          : ['hit-test','hand-tracking'];
         const arButton = ARButton.createButton(renderer, { requiredFeatures });
         if (arButton.parentNode) {
           arButton.parentNode.removeChild(arButton);
@@ -301,6 +380,15 @@
         overlay.appendChild(arButton);
 
         document.body.appendChild(overlay);
+
+        // Cada vez que cambie el número de respuestas, recargamos el TOP 5
+        const selectAnswers = document.getElementById('numAnswers');
+        selectAnswers.addEventListener('change', () => {
+          const num = parseInt(selectAnswers.value) || 4;
+          updateLeaderboardPreview(num);
+        });
+        // Llamar una primera vez para que cargue por defecto (4)
+        updateLeaderboardPreview(4);
 
         // Evento al iniciar la sesión AR
         renderer.xr.addEventListener('sessionstart', () => {
@@ -707,7 +795,6 @@
                 } else if (btn === scrollUpButtonMesh) {
                   scoreboardStartIndex -= pageSize;
                   if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                  console.log("▲ SCROLL UP => index:", scoreboardStartIndex);
                   drawLeaderboardSegment();
                   setTimeout(() => { hasCollided = false; }, 500);
                 } else if (btn === scrollDownButtonMesh) {
@@ -716,7 +803,6 @@
                     scoreboardStartIndex = leaderboardResults.length - pageSize;
                     if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
                   }
-                  console.log("▼ SCROLL DOWN => index:", scoreboardStartIndex);
                   drawLeaderboardSegment();
                   setTimeout(() => { hasCollided = false; }, 500);
                 }
@@ -835,7 +921,7 @@
         leaderboardMesh.position.set(0, 0, -1.2);
         scene.add(leaderboardMesh);
 
-        // Botón Reiniciar: lo ponemos un poco más cerca => -1.1 (para que no quede detrás)
+        // Botón Reiniciar: lo ponemos un poco más cerca => -1.1
         restartButtonMesh = createButton("Reiniciar");
         restartButtonMesh.position.set(0, -0.8, -1.1);
         scene.add(restartButtonMesh);
@@ -931,7 +1017,7 @@
         // scoreboard a z=-1.2
         leaderboardMesh.position.set(0, 0.0, -1.2);
 
-        // Reposicionar botones un poco más “cerca” (z=-1.1) para que no queden detrás
+        // Reposicionar botones un poco más “cerca” (z=-1.1)
         restartButtonMesh.position.set(0, -planeHeight*0.6, -1.1);
         scrollUpButtonMesh.position.set(-planeWidth*0.5 - 0.1, planeHeight*0.35, -1.1);
         scrollDownButtonMesh.position.set(-planeWidth*0.5 - 0.1, -planeHeight*0.35, -1.1);
@@ -1072,7 +1158,6 @@
               } else if (objHit === scrollUpButtonMesh) {
                 scoreboardStartIndex -= pageSize;
                 if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                console.log("▲ SCROLL UP => index:", scoreboardStartIndex);
                 drawLeaderboardSegment();
                 setTimeout(() => { hasCollided = false; }, 500);
               } else if (objHit === scrollDownButtonMesh) {
@@ -1081,7 +1166,6 @@
                   scoreboardStartIndex = leaderboardResults.length - pageSize;
                   if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
                 }
-                console.log("▼ SCROLL DOWN => index:", scoreboardStartIndex);
                 drawLeaderboardSegment();
                 setTimeout(() => { hasCollided = false; }, 500);
               }
