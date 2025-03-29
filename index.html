@@ -75,7 +75,7 @@
         getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp 
       } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-      // Configuración (datos de tu proyecto)
+      // Datos de configuración (tu proyecto)
       const firebaseConfig = {
         apiKey: "AIzaSyD5EAMg-0p54f8bPq8SVdZ_ePg5Xso3cmg",
         authDomain: "arm1-acbba.firebaseapp.com",
@@ -644,7 +644,6 @@
         }
       }
 
-      // Cuando se acaba el tiempo, se calcula el puntaje, se envía a Firestore y se muestra el leaderboard en AR
       function endGame() {
         gameOver = true;
         if (questionMesh) scene.remove(questionMesh);
@@ -678,7 +677,7 @@
         }
       }
 
-      // Aquí se crea el leaderboard y el botón de reiniciar y se añaden a la cámara para que se vean en AR
+      // Muestra la tabla de clasificación y el botón de reiniciar en AR (añadidos a la cámara)
       function showLeaderboard(numAnswers, finalScore) {
         const q = query(
           collection(db, "leaderboard"),
@@ -741,8 +740,13 @@
           leaderboardTexture.magFilter = THREE.LinearFilter;
           const leaderboardGeometry = new THREE.PlaneGeometry(0.8, 0.8 * canvasHeight / canvasWidth);
           const leaderboardMaterial = new THREE.MeshBasicMaterial({ map: leaderboardTexture, transparent: true });
+          // Forzar que la tabla se renderice por delante
+          leaderboardMaterial.depthTest = false;
+          leaderboardMaterial.depthWrite = false;
           const leaderboardMesh = new THREE.Mesh(leaderboardGeometry, leaderboardMaterial);
-          // Agregar el leaderboard a la cámara para que se vea en AR
+          leaderboardMesh.renderOrder = 9999;
+          leaderboardMesh.name = "leaderboard";
+          // Agregar la tabla a la cámara
           camera.add(leaderboardMesh);
           leaderboardMesh.position.set(0, 0.2, -1);
 
@@ -755,6 +759,7 @@
         });
       }
 
+      // Se actualiza createButton para forzar que el botón se renderice al frente
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 128 * resolutionFactor;
@@ -772,7 +777,12 @@
         texture.magFilter = THREE.LinearFilter;
         const geom = new THREE.PlaneGeometry(0.2, 0.1);
         const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        return new THREE.Mesh(geom, mat);
+        // Forzar renderización al frente
+        mat.depthTest = false;
+        mat.depthWrite = false;
+        const buttonMesh = new THREE.Mesh(geom, mat);
+        buttonMesh.renderOrder = 9999;
+        return buttonMesh;
       }
 
       function restartGame() {
@@ -781,7 +791,6 @@
           camera.remove(restartButtonMesh);
           restartButtonMesh = null;
         }
-        // Remover cualquier otro objeto de leaderboard (si se agregaron como hijos de la cámara)
         camera.children.forEach(child => {
           if (child.name === "leaderboard") {
             camera.remove(child);
