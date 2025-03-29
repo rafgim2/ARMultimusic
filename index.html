@@ -58,30 +58,6 @@
           max-width: 70%;
         }
       }
-      /* Estilos para el leaderboard (tabla de clasificación) */
-      #leaderboardOverlay {
-        position: absolute;
-        top: 10%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: #fff;
-        padding: 20px;
-        border-radius: 10px;
-        max-height: 80%;
-        overflow-y: auto;
-        z-index: 20;
-      }
-      #leaderboardOverlay table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      #leaderboardOverlay th,
-      #leaderboardOverlay td {
-        border: 1px solid #fff;
-        padding: 5px;
-        text-align: center;
-      }
     </style>
   </head>
   <body>
@@ -91,15 +67,12 @@
     <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
     <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
 
-    <!-- Overlay para el leaderboard (se creará dinámicamente al finalizar el juego) -->
-    <div id="leaderboardOverlay" style="display: none;"></div>
-
     <script type="module">
       /***** Firebase y Firestore *****/
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
       import { 
-        getFirestore, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp 
+        getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp 
       } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
       // Configuración obtenida de Firebase Console
@@ -160,7 +133,7 @@
       // Variable global para el nombre del jugador
       let playerName = "";
 
-      // Función para dibujar un rectángulo redondeado sin sombra
+      // Función para dibujar un rectángulo redondeado
       function drawRoundedRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -176,7 +149,7 @@
         ctx.fill();
       }
 
-      // Función para actualizar paneles de respuestas
+      // Actualiza el panel de respuestas con mayor resolución
       function updateAnswerPanel(mesh, value) {
         const canvas = document.createElement('canvas');
         canvas.width = 256 * resolutionFactor;
@@ -249,8 +222,10 @@
           '</div>' +
           '<input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding:10px; font-size:16px; margin-bottom:20px;">';
 
-        // Crear el botón AR con estilos personalizados
-        const arButton = ARButton.createButton(renderer, { requiredFeatures: /Mobi|Android/i.test(navigator.userAgent) ? ['hit-test'] : ['hit-test','hand-tracking'] });
+        // Crear el botón AR personalizado
+        const arButton = ARButton.createButton(renderer, { 
+          requiredFeatures: /Mobi|Android/i.test(navigator.userAgent) ? ['hit-test'] : ['hit-test','hand-tracking'] 
+        });
         if (arButton.parentNode) {
           arButton.parentNode.removeChild(arButton);
         }
@@ -686,8 +661,7 @@
         }
       }
 
-      // Al finalizar el juego, se calcula el puntaje (aciertos - fallos),
-      // se envía a Firestore y se muestra la tabla de clasificación (por modo de juego).
+      // Al finalizar el juego se calcula el puntaje, se envía a Firestore y se muestra la tabla en AR
       function endGame() {
         gameOver = true;
         if (questionMesh) scene.remove(questionMesh);
@@ -695,13 +669,10 @@
         if (scoreMesh) scene.remove(scoreMesh);
         answers.forEach((panel) => scene.remove(panel));
 
-        // Calcular el puntaje final
         const finalScore = correctCount - wrongCount;
 
-        // Enviar puntaje a Firestore
         submitScore(playerName, finalScore, selectedNumAnswers)
           .then(() => {
-            // Mostrar tabla de clasificación tras enviar el puntaje
             showLeaderboard(selectedNumAnswers, finalScore);
           })
           .catch((error) => {
@@ -710,7 +681,7 @@
           });
       }
 
-      // Función que envía la puntuación a la colección "leaderboard"
+      // Envia la puntuación a Firestore
       async function submitScore(name, score, numAnswers) {
         try {
           const docRef = await addDoc(collection(db, "leaderboard"), {
@@ -726,65 +697,87 @@
         }
       }
 
-      // Función para mostrar la tabla de clasificación para el modo actual
+      // Muestra en AR la tabla de clasificación y un botón de reiniciar
       function showLeaderboard(numAnswers, finalScore) {
-        let leaderboardOverlay = document.getElementById("leaderboardOverlay");
-        leaderboardOverlay.innerHTML = "";
-
-        const title = document.createElement("h2");
-        title.textContent = "Tabla de Clasificación (" + numAnswers + " respuestas)";
-        leaderboardOverlay.appendChild(title);
-
-        const table = document.createElement("table");
-        table.innerHTML = "<tr><th>Posición</th><th>Nombre</th><th>Puntuación</th></tr>";
-
         const q = query(
           collection(db, "leaderboard"),
           where("numAnswers", "==", numAnswers),
-          orderBy("score", "desc")
+          orderBy("score", "desc"),
+          limit(10)
         );
         getDocs(q).then((querySnapshot) => {
-          let position = 1;
+          const rows = [];
           let playerPosition = null;
+          let position = 1;
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-            const row = document.createElement("tr");
+            rows.push({ position: position, name: data.name, score: data.score });
             if (data.name === playerName && data.score === finalScore && playerPosition === null) {
               playerPosition = position;
-              row.style.background = "green";
             }
-            row.innerHTML = "<td>" + position + "</td>" +
-                            "<td>" + data.name + "</td>" +
-                            "<td>" + data.score + "</td>";
-            table.appendChild(row);
             position++;
           });
 
-          leaderboardOverlay.appendChild(table);
+          // Crear canvas para dibujar la tabla
+          const canvas = document.createElement('canvas');
+          const canvasWidth = 512 * resolutionFactor;
+          const headerHeight = 50 * resolutionFactor;
+          const rowHeight = 30 * resolutionFactor;
+          const canvasHeight = headerHeight + (rows.length * rowHeight);
+          canvas.width = canvasWidth;
+          canvas.height = canvasHeight;
+          const ctx = canvas.getContext('2d');
 
-          if (playerPosition !== null) {
-            const posMsg = document.createElement("p");
-            posMsg.textContent = "Tu posición: " + playerPosition;
-            leaderboardOverlay.appendChild(posMsg);
+          // Fondo de la tabla
+          ctx.fillStyle = "#007BFF";
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+          // Título
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = `${30 * resolutionFactor}px Arial`;
+          ctx.textAlign = "center";
+          ctx.fillText(`Tabla de Clasificación (${numAnswers} respuestas)`, canvasWidth / 2, 40 * resolutionFactor);
+
+          // Cabecera de la tabla
+          ctx.font = `${20 * resolutionFactor}px Arial`;
+          ctx.fillStyle = "#CCCCCC";
+          ctx.fillText("Pos", canvasWidth * 0.15, headerHeight + rowHeight / 2);
+          ctx.fillText("Nombre", canvasWidth * 0.5, headerHeight + rowHeight / 2);
+          ctx.fillText("Puntos", canvasWidth * 0.85, headerHeight + rowHeight / 2);
+
+          // Dibujar cada fila
+          ctx.font = `${20 * resolutionFactor}px Arial`;
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (playerPosition !== null && row.position === playerPosition) {
+              ctx.fillStyle = "green";
+              ctx.fillRect(0, headerHeight + i * rowHeight, canvasWidth, rowHeight);
+            }
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(row.position, canvasWidth * 0.15, headerHeight + (i + 0.5) * rowHeight);
+            ctx.fillText(row.name, canvasWidth * 0.5, headerHeight + (i + 0.5) * rowHeight);
+            ctx.fillText(row.score, canvasWidth * 0.85, headerHeight + (i + 0.5) * rowHeight);
           }
 
-          const restartBtn = document.createElement("button");
-          restartBtn.textContent = "Reiniciar";
-          restartBtn.style.padding = "10px 20px";
-          restartBtn.style.fontSize = "16px";
-          restartBtn.style.marginTop = "20px";
-          restartBtn.addEventListener("click", () => {
-            leaderboardOverlay.style.display = "none";
-            restartGame();
-          });
-          leaderboardOverlay.appendChild(restartBtn);
+          const leaderboardTexture = new THREE.CanvasTexture(canvas);
+          leaderboardTexture.minFilter = THREE.LinearFilter;
+          leaderboardTexture.magFilter = THREE.LinearFilter;
+          const leaderboardGeometry = new THREE.PlaneGeometry(0.8, 0.8 * canvasHeight / canvasWidth);
+          const leaderboardMaterial = new THREE.MeshBasicMaterial({ map: leaderboardTexture, transparent: true });
+          const leaderboardMesh = new THREE.Mesh(leaderboardGeometry, leaderboardMaterial);
+          leaderboardMesh.position.set(0, 0.2, -1);
+          scene.add(leaderboardMesh);
+
+          // Crear botón de reiniciar en AR
+          restartButtonMesh = createButton("Reiniciar");
+          restartButtonMesh.position.set(0, -0.4, -1);
+          scene.add(restartButtonMesh);
         }).catch((error) => {
           console.error("Error obteniendo el leaderboard: ", error);
         });
-
-        leaderboardOverlay.style.display = "block";
       }
 
+      // Función para crear un botón (usado para reiniciar)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 128 * resolutionFactor;
@@ -806,10 +799,6 @@
       }
 
       function restartGame() {
-        let leaderboardOverlay = document.getElementById("leaderboardOverlay");
-        if (leaderboardOverlay) {
-          leaderboardOverlay.style.display = "none";
-        }
         if (restartButtonMesh) scene.remove(restartButtonMesh);
         if (questionMesh) {
           scene.remove(questionMesh);
