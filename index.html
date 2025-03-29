@@ -300,7 +300,7 @@
         const geometry = new THREE.PlaneGeometry(width, height);
         const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         const mesh = new THREE.Mesh(geometry, material);
-        // Guardamos ref en mesh
+        // Guardamos referencias en mesh
         mesh.userData.canvas = canvas;
         mesh.userData.ctx = ctx;
         mesh.userData.texture = texture;
@@ -698,7 +698,8 @@
         showLeaderboardInAR(collectionName, finalScore);
       }
 
-      // Mostrar leaderboard en AR (colección "leaderboard_X")
+      // Mostrar leaderboard en AR (colección "leaderboard_X"),
+      // con columnas separadas (Posición, Nombre, Puntuación)
       async function showLeaderboardInAR(collectionName, playerFinalScore) {
         let qLeaderboard = query(
           collection(db, collectionName),
@@ -717,13 +718,10 @@
         querySnapshot.forEach((doc) => {
           results.push(doc.data());
         });
-        // Orden descendente (ya lo hace orderBy, pero si quisieras forzar, lo harías aquí)
-        // results.sort((a,b) => b.score - a.score);
-
-        // Limitar a top 10 (opcional)
+        // Limitamos a top 10
         results = results.slice(0, 10);
 
-        // Crear canvas
+        // Construir canvas para la tabla
         const lineHeight = 40 * resolutionFactor;
         const canvasWidth = 512 * resolutionFactor;
         const canvasHeight = (lineHeight * (results.length + 4)); 
@@ -747,29 +745,47 @@
           lineHeight
         );
 
+        // Coordenadas X para cada columna
+        const xPosPos    = 0.10 * canvasWidth; // Columna posición
+        const xPosName   = 0.40 * canvasWidth; // Columna nombre
+        const xPosScore  = 0.75 * canvasWidth; // Columna puntuación
+
         // Cabecera
         let startY = lineHeight * 2.5; 
         ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-        ctx.fillText("Pos  Nombre                Puntos", canvasWidth / 2, startY);
-
-        // Filas
-        let position = 1;
-        let yPos = startY + 1.5 * lineHeight;
         ctx.textAlign = "left";
 
+        ctx.fillText("Pos", xPosPos,   startY);
+        ctx.fillText("Nombre", xPosName, startY);
+        ctx.fillText("Puntos", xPosScore, startY);
+
+        let position = 1;
+        let yPos = startY + (1.5 * lineHeight); 
         let playerPosition = null;
 
         for (let data of results) {
-          const rowText = `${(position+"").padEnd(2)}  ${data.name.padEnd(15)}  ${data.score}`;
-          // Destacar la fila del jugador actual
-          if (data.name === playerName && data.score === playerFinalScore && playerPosition === null) {
+          // Destacamos la fila si es el jugador actual
+          const isPlayerRow = (data.name === playerName && data.score === playerFinalScore && playerPosition === null);
+
+          if (isPlayerRow) {
             ctx.fillStyle = "green";
+            // Dibujamos fondo verde para la fila
             ctx.fillRect(0, yPos - lineHeight * 0.6, canvasWidth, lineHeight);
             ctx.fillStyle = "#FFFFFF";
             playerPosition = position;
+          } else {
+            ctx.fillStyle = "#FFFFFF";
           }
 
-          ctx.fillText(rowText, 40 * resolutionFactor, yPos);
+          // Posición
+          ctx.fillText(String(position), xPosPos, yPos);
+
+          // Nombre
+          ctx.fillText(data.name, xPosName, yPos);
+
+          // Puntuación
+          ctx.fillText(String(data.score), xPosScore, yPos);
+
           yPos += lineHeight;
           position++;
         }
@@ -794,7 +810,7 @@
         const lbMaterial = new THREE.MeshBasicMaterial({ map: lbTexture, transparent: true });
         leaderboardMesh = new THREE.Mesh(lbGeometry, lbMaterial);
 
-        // Posicionarlo en AR
+        // Posicionar en AR
         leaderboardMesh.position.set(0, 0, -1.2);
         scene.add(leaderboardMesh);
 
