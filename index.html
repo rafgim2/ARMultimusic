@@ -120,12 +120,61 @@
       const analytics = getAnalytics(appFirebase);
       const db = getFirestore(appFirebase);
 
-      /***** Variables globales del juego y del tie-breaker *****/
+      /***** Función para cargar y mostrar el top 5 en el overlay *****/
+      async function updateLeaderboardPreview(numAnswers) {
+        const collectionName = leaderboard_${numAnswers};
+        try {
+          let top5Query = query(
+            collection(db, collectionName),
+            orderBy("score", "desc"),
+            limit(3)
+          );
+          const querySnapshot = await getDocs(top5Query);
+          const results = [];
+          querySnapshot.forEach((docSnap) => {
+            results.push(docSnap.data());
+          });
+
+          const container = document.getElementById('leaderboardPreview');
+          container.innerHTML = ""; // Limpia previo
+
+          if (results.length > 0) {
+            let html = "<table>";
+            html += "<tr><th>Pos</th><th>Nombre</th><th>Puntos</th></tr>";
+            for (let i = 0; i < results.length; i++) {
+              html += <tr>
+                <td>${i+1}</td>
+                <td>${results[i].name}</td>
+                <td>${results[i].score}</td>
+              </tr>;
+            }
+            html += "</table>";
+            container.innerHTML = html;
+          } else {
+            container.innerHTML = "<p>No hay puntuaciones aún.</p>";
+          }
+        } catch (err) {
+          console.error("Error cargando top 5:", err);
+          document.getElementById('leaderboardPreview').innerHTML =
+            "<p>Error cargando clasificación.</p>";
+        }
+      }
+
+      /***** 2) Código AR y juego *****/
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
+      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
+
+      let camera, scene, renderer;
+
+      // Pregunta y respuestas
       let correctAnswer;
       let answers = [];
       let hasCollided = false;
       let questionMesh = null;
       let questionText = "";
+
+      // Aumentamos un poco el umbral de colisión
+      const collisionThreshold = 0.3;
 
       // Contadores
       let correctCount = 0;
@@ -170,15 +219,9 @@
       let leaderboardResults = [];      
       let scoreboardStartIndex = 0;     
       const pageSize = 10;             
-      let playerPosition = null;
+      let playerPosition = null;       
 
-      // ***** Variables para el tie-breaker (tiempo de respuesta) *****
-      let currentQuestionNumber = 0;
-      let tieBreakerQuestionNumber = Math.floor(Math.random() * 5) + 1; // Selecciona aleatoriamente entre 1 y 5
-      let tieBreakerStartTime = null;
-      let tieBreakerElapsed = null;
-
-      /***** 2. Funciones auxiliares *****/
+      /***** 2.1) Funciones auxiliares *****/
       function drawRoundedRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -272,11 +315,6 @@
       }
 
       /***** 2.2) Inicializar AR *****/
-      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
-
-      let camera, scene, renderer;
-
       function init() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -296,7 +334,7 @@
         // Overlay inicial
         const overlay = document.createElement('div');
         overlay.id = 'overlay';
-        overlay.innerHTML = `
+        overlay.innerHTML = 
           <img src="ARM2.jpeg" alt="AR Mult">
           <a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>
           <div class="respuestas-container">
@@ -321,7 +359,7 @@
             style="padding:10px; font-size:16px; margin-bottom:20px;"
             maxlength="10"
           >
-        `;
+        ;
 
         // Botón AR
         const requiredFeatures = /Mobi|Android/i.test(navigator.userAgent)
@@ -432,29 +470,16 @@
         ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, canvas.width / 2, canvas.height / 2);
+        ctx.fillText(Aciertos: ${correctCount} | Fallos: ${wrongCount}, canvas.width / 2, canvas.height / 2);
         texture.needsUpdate = true;
-      }
-
-      // Función para registrar el tiempo de respuesta de la pregunta tie-breaker
-      function recordTieBreakerTime() {
-        if (currentQuestionNumber === tieBreakerQuestionNumber && tieBreakerStartTime !== null && tieBreakerElapsed === null) {
-          tieBreakerElapsed = performance.now() - tieBreakerStartTime;
-          console.log("Tiempo de respuesta de desempate: " + tieBreakerElapsed + " ms");
-        }
       }
 
       // Generar pregunta
       function generateQuestion() {
-        currentQuestionNumber++;
-        // Si es la pregunta seleccionada para desempate, iniciar el cronómetro
-        if (currentQuestionNumber === tieBreakerQuestionNumber) {
-          tieBreakerStartTime = performance.now();
-        }
         const a = Math.floor(Math.random() * 10) + 1;
         const b = Math.floor(Math.random() * 10) + 1;
         correctAnswer = a * b;
-        questionText = `¿Cuánto es ${a} x ${b}?`;
+        questionText = ¿Cuánto es ${a} x ${b}?;
 
         if (questionMesh) {
           scene.remove(questionMesh);
@@ -708,8 +733,6 @@
               const distance = point.distanceTo(panelPos);
               if (distance < collisionThreshold && !hasCollided) {
                 hasCollided = true;
-                // Registrar el tiempo de respuesta si es la pregunta tie-breaker
-                recordTieBreakerTime();
                 if (panel.userData.answer === correctAnswer) {
                   console.log("¡Colisión 3D con respuesta CORRECTA!");
                   correctCount++;
@@ -760,6 +783,7 @@
                 hasCollided = true;
                 console.log("¡Colisión 3D con botón final!");
                 if (btn === restartButtonMesh) {
+                  // Reiniciar
                   const successSound = document.getElementById('successSound');
                   const successClone = successSound.cloneNode();
                   successClone.play().catch((e) => console.error(e));
@@ -800,17 +824,7 @@
         answers.forEach((panel) => scene.remove(panel));
 
         const finalScore = correctCount - wrongCount;
-        const collectionName = `leaderboard_${selectedNumAnswers}`;
-
-        // Preparar datos a almacenar (se sube tieBreaker pero NO se muestra en la tabla)
-        const dataToStore = {
-          name: playerName,
-          score: finalScore,
-          timestamp: serverTimestamp()
-        };
-        if (tieBreakerElapsed !== null) {
-          dataToStore.tieBreaker = tieBreakerElapsed;
-        }
+        const collectionName = leaderboard_${selectedNumAnswers};
 
         // Buscar doc con el mismo playerName
         let docsFound = await getDocs(
@@ -824,10 +838,17 @@
         if (!docsFound.empty) {
           // Existe => se actualiza
           const docToUpdate = docsFound.docs[0];
-          await updateDoc(doc(db, collectionName, docToUpdate.id), dataToStore);
+          await updateDoc(doc(db, collectionName, docToUpdate.id), {
+            score: finalScore,
+            timestamp: serverTimestamp()
+          });
         } else {
           // No existe => se crea
-          await addDoc(collection(db, collectionName), dataToStore);
+          await addDoc(collection(db, collectionName), {
+            name: playerName,
+            score: finalScore,
+            timestamp: serverTimestamp()
+          });
         }
 
         // Cargar y ordenar
@@ -942,7 +963,7 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
-          `Tabla de Clasificación`,
+          Tabla de Clasificación,
           canvasWidth / 2,
           lineHeight
         );
@@ -982,7 +1003,7 @@
         if (playerPosition !== null) {
           ctx.textAlign = "center";
           ctx.fillText(
-            `Tu posición: ${playerPosition}`,
+            Tu posición: ${playerPosition},
             canvasWidth / 2,
             yPos + lineHeight
           );
@@ -1005,12 +1026,6 @@
 
       // Reiniciar
       function restartGame() {
-        // Reiniciar variables del tie-breaker
-        currentQuestionNumber = 0;
-        tieBreakerQuestionNumber = Math.floor(Math.random() * 5) + 1;
-        tieBreakerStartTime = null;
-        tieBreakerElapsed = null;
-
         if (leaderboardMesh) scene.remove(leaderboardMesh);
         if (restartButtonMesh) scene.remove(restartButtonMesh);
         if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
@@ -1096,8 +1111,6 @@
             const objHit = intersects[0].object;
             hasCollided = true;
 
-            // Registrar el tiempo si es la pregunta tie-breaker
-            recordTieBreakerTime();
             // Si NO ha acabado, es un panel de respuesta
             if (!gameOver) {
               if (objHit.userData.answer === correctAnswer) {
