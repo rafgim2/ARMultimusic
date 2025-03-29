@@ -124,10 +124,10 @@
       async function updateLeaderboardPreview(numAnswers) {
         const collectionName = `leaderboard_${numAnswers}`;
         try {
-          let top5Query = query(
+          let top3Query = query(
             collection(db, collectionName),
             orderBy("score", "desc"),
-            limit(5)
+            limit(3)
           );
           const querySnapshot = await getDocs(top5Query);
           const results = [];
