@@ -72,7 +72,8 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
       import { 
-        getFirestore, collection, addDoc, orderBy, getDocs, serverTimestamp, query 
+        getFirestore, collection, addDoc, orderBy, getDocs, serverTimestamp,
+        query, where, limit, updateDoc, doc 
       } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
       // Configura tu proyecto
@@ -103,7 +104,9 @@
       let hasCollided = false;
       let questionMesh = null;
       let questionText = "";
-      const collisionThreshold = 0.2;
+
+      // Aumentamos un poco el umbral de colisión
+      const collisionThreshold = 0.3;
 
       // Contadores
       let correctCount = 0;
@@ -144,10 +147,10 @@
       // Lista de sistemas de chispas
       const sparksSystems = [];
 
-      // Variables para manejar la tabla completa y la "paginación"
+      // Variables para manejar la tabla completa y la “paginación”
       let leaderboardResults = [];      // Todos los documentos
-      let scoreboardStartIndex = 0;     // Índice actual que se mostrará
-      const pageSize = 10;             // 10 filas por "página"
+      let scoreboardStartIndex = 0;     // Índice de inicio
+      const pageSize = 10;             // 10 filas por “página”
       let playerPosition = null;       // Posición real del jugador en la clasificación
 
       /***** 2.1) Funciones auxiliares *****/
@@ -181,7 +184,7 @@
         return new THREE.CanvasTexture(canvas);
       }
 
-      // Crear un mesh a partir de un canvas (retorna la malla con su ctx)
+      // Crear un mesh a partir de un canvas (retorna la malla)
       function createCanvasPlane(canvas, ctx, width, height) {
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -631,9 +634,8 @@
           interactionPoints.push(cameraPos);
         }
 
-        // Revisión de colisión con paneles o con botones
+        // Revisión de colisión con paneles (si no ha acabado)
         if (!gameOver) {
-          // Paneles
           for (let panel of answers) {
             const panelPos = new THREE.Vector3();
             panel.getWorldPosition(panelPos);
@@ -643,6 +645,7 @@
                 hasCollided = true;
                 if (panel.userData.answer === correctAnswer) {
                   correctCount++;
+                  console.log("¡Colisión con respuesta CORRECTA!");
                   const successSound = document.getElementById('successSound');
                   const successClone = successSound.cloneNode();
                   successClone.play().catch((e) => console.error(e));
@@ -658,6 +661,7 @@
                     hasCollided = false;
                   }, 1000);
                 } else {
+                  console.log("¡Colisión con respuesta ERRÓNEA!");
                   wrongCount++;
                   const errorSound = document.getElementById('errorSound');
                   const errorClone = errorSound.cloneNode();
@@ -672,57 +676,61 @@
               }
             }
           }
-        } else {
-          // Si el juego terminó, revisar colisión con scrollUp / scrollDown / Reiniciar
-          // Botón Reiniciar
-          if (restartButtonMesh) {
-            checkButtonCollision(restartButtonMesh, interactionPoints, () => {
-              const successSound = document.getElementById('successSound');
-              const successClone = successSound.cloneNode();
-              successClone.play().catch((e) => console.error(e));
-              createSparksEffect(restartButtonMesh.position);
-              restartButtonMesh.visible = false;
-              setTimeout(() => {
-                restartGame();
-                hasCollided = false;
-              }, 1000);
-            });
-          }
-          // Botón scrollUp
-          if (scrollUpButtonMesh) {
-            checkButtonCollision(scrollUpButtonMesh, interactionPoints, () => {
-              scoreboardStartIndex -= pageSize;
-              if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-              drawLeaderboardSegment(); // Redibujar la tabla
-              hasCollided = false;
-            });
-          }
-          // Botón scrollDown
-          if (scrollDownButtonMesh) {
-            checkButtonCollision(scrollDownButtonMesh, interactionPoints, () => {
-              scoreboardStartIndex += pageSize;
-              if (scoreboardStartIndex >= leaderboardResults.length) {
-                scoreboardStartIndex = leaderboardResults.length - pageSize;
-                if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-              }
-              drawLeaderboardSegment();
-              hasCollided = false;
-            });
-          }
-        }
-      }
+        } 
+        else {
+          // Si el juego ha terminado, colisionamos con:
+          // (1) Botón Reiniciar
+          // (2) Botón scrollUp
+          // (3) Botón scrollDown
+          let finalButtons = [];
+          if (restartButtonMesh) finalButtons.push(restartButtonMesh);
+          if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
+          if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
 
-      // Función genérica para detectar colisión con un botón
-      function checkButtonCollision(buttonMesh, points, callback) {
-        if (!buttonMesh.visible) return;
-        const buttonPos = new THREE.Vector3();
-        buttonMesh.getWorldPosition(buttonPos);
-        for (const point of points) {
-          const distance = point.distanceTo(buttonPos);
-          if (distance < collisionThreshold && !hasCollided) {
-            hasCollided = true;
-            callback();
-            break;
+          for (const btn of finalButtons) {
+            if (!btn.visible) continue;
+            const btnPos = new THREE.Vector3();
+            btn.getWorldPosition(btnPos);
+            for (const point of interactionPoints) {
+              const distance = point.distanceTo(btnPos);
+              if (distance < collisionThreshold && !hasCollided) {
+                console.log("¡Colisión con botón final!");
+                hasCollided = true;
+                // Decidir cuál botón es
+                if (btn === restartButtonMesh) {
+                  // Reiniciar
+                  const successSound = document.getElementById('successSound');
+                  const successClone = successSound.cloneNode();
+                  successClone.play().catch((e) => console.error(e));
+                  createSparksEffect(btn.position);
+                  btn.visible = false;
+                  setTimeout(() => {
+                    restartGame();
+                    hasCollided = false;
+                  }, 1000);
+                } 
+                else if (btn === scrollUpButtonMesh) {
+                  // Subir
+                  scoreboardStartIndex -= pageSize;
+                  if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
+                  console.log("▲ Scroll up a index", scoreboardStartIndex);
+                  drawLeaderboardSegment(); 
+                  setTimeout(() => { hasCollided = false; }, 500);
+                } 
+                else if (btn === scrollDownButtonMesh) {
+                  // Bajar
+                  scoreboardStartIndex += pageSize;
+                  if (scoreboardStartIndex >= leaderboardResults.length) {
+                    scoreboardStartIndex = leaderboardResults.length - pageSize;
+                    if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
+                  }
+                  console.log("▼ Scroll down a index", scoreboardStartIndex);
+                  drawLeaderboardSegment();
+                  setTimeout(() => { hasCollided = false; }, 500);
+                }
+                return;
+              }
+            }
           }
         }
       }
@@ -738,16 +746,34 @@
 
         const finalScore = correctCount - wrongCount;
 
-        // Guardar puntuación en la colección "leaderboard_X"
+        // Nombre de la colección, según número de respuestas
         const collectionName = `leaderboard_${selectedNumAnswers}`;
-        try {
+
+        // ANTES DE AGREGAR, BUSCAMOS SI YA EXISTE ESE NOMBRE
+        let docsFound = await getDocs(
+          query(
+            collection(db, collectionName),
+            where("name", "==", playerName),
+            limit(1)
+          )
+        );
+
+        if (!docsFound.empty) {
+          // Ya existía, sobrescribimos la puntuación
+          const docToUpdate = docsFound.docs[0];
+          // Por simplicidad, siempre reemplazamos la puntuación
+          // (si quisieras solo si es mayor, haz un if extra)
+          await updateDoc(doc(db, collectionName, docToUpdate.id), {
+            score: finalScore,
+            timestamp: serverTimestamp()
+          });
+        } else {
+          // No existe => creamos doc nuevo
           await addDoc(collection(db, collectionName), {
             name: playerName,
             score: finalScore,
             timestamp: serverTimestamp()
           });
-        } catch (error) {
-          console.error("Error al guardar puntuación:", error);
         }
 
         // 1) Cargar TODO y guardarlo en leaderboardResults
@@ -778,7 +804,6 @@
         playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
 
         // 2) Calcular scoreboardStartIndex para que el jugador quede al centro
-        //    Ej: si playerIndex=50, scoreboardStartIndex=46 => mostrará 50 en medio
         scoreboardStartIndex = playerIndex - Math.floor(pageSize / 2);
         if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
         if (scoreboardStartIndex >= leaderboardResults.length) {
@@ -788,35 +813,34 @@
         // 3) Crear la tabla en AR
         createLeaderboardMesh();
 
-        // 4) Dibujar el segmento
+        // 4) Dibujar la “página”
         drawLeaderboardSegment();
       }
 
       // Crear la malla "leaderboardMesh" y los botones "Reiniciar", "▲", "▼"
       function createLeaderboardMesh() {
-        // Si existían, quitarlos
         if (leaderboardMesh) scene.remove(leaderboardMesh);
         if (restartButtonMesh) scene.remove(restartButtonMesh);
         if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
         if (scrollDownButtonMesh) scene.remove(scrollDownButtonMesh);
 
-        // Creamos un canvas "dummy" por ahora
+        // Canvas "dummy"
         const dummyCanvas = document.createElement('canvas');
-        dummyCanvas.width = 512; // se actualizará en drawLeaderboardSegment
+        dummyCanvas.width = 512;
         dummyCanvas.height = 512; 
         const ctx = dummyCanvas.getContext('2d');
 
-        // Convertimos a textura
         const lbTexture = new THREE.CanvasTexture(dummyCanvas);
         lbTexture.minFilter = THREE.LinearFilter;
         lbTexture.magFilter = THREE.LinearFilter;
+
         const planeWidth = 1.2; 
-        const planeHeight = 1.0; // Se ajustará en drawLeaderboardSegment
+        const planeHeight = 1.0; 
         const lbGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
         const lbMaterial = new THREE.MeshBasicMaterial({ map: lbTexture, transparent: true });
         leaderboardMesh = new THREE.Mesh(lbGeometry, lbMaterial);
 
-        // Guardamos refs
+        // Guardar refs
         leaderboardMesh.userData.canvas = dummyCanvas;
         leaderboardMesh.userData.ctx = ctx;
         leaderboardMesh.userData.texture = lbTexture;
@@ -842,14 +866,13 @@
         scene.add(scrollDownButtonMesh);
       }
 
-      // Dibuja la porción del leaderboard (scoreboardStartIndex ... scoreboardStartIndex+pageSize)
+      // Dibuja la porción del leaderboard
       function drawLeaderboardSegment() {
         if (!leaderboardMesh) return;
         const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
 
         const subset = leaderboardResults.slice(scoreboardStartIndex, scoreboardStartIndex + pageSize);
 
-        // Calculamos altura en función del subset
         const lineHeight = 40 * resolutionFactor;
         const extraLines = 4; // titulo + header + posJugador
         const canvasWidth = 512 * resolutionFactor;
@@ -886,7 +909,6 @@
         ctx.fillText("Nombre", xPosName,  startY);
         ctx.fillText("Puntos", xPosScore, startY);
 
-        // Filas
         let yPos = startY + (1.5 * lineHeight);
 
         for (let i = 0; i < subset.length; i++) {
@@ -907,8 +929,7 @@
           yPos += lineHeight;
         }
 
-        // Si queremos, mostramos la posición real del jugador debajo
-        // (no es estrictamente necesario, pero puede servir).
+        // Posición del jugador (opcional)
         if (playerPosition !== null) {
           ctx.textAlign = "center";
           ctx.fillText(
@@ -921,19 +942,16 @@
         // Actualizar textura
         texture.needsUpdate = true;
 
-        // Ajustar la geometría del plane a la nueva relación de aspecto
+        // Ajustar la geometría
         const planeHeight = planeWidth * (canvasHeight / canvasWidth);
         leaderboardMesh.geometry.dispose();
         leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
 
-        // Reposicionar si deseas (ahora, lo dejamos con la parte superior centrada)
-        // Por ejemplo, lo subimos un poco para que no tape el "Reiniciar"
+        // Reposicionar
         leaderboardMesh.position.set(0, 0.0, -1.2);
 
-        // Ponemos los botones un poco más abajo
+        // Reposicionar botones
         restartButtonMesh.position.set(0, -planeHeight*0.6, -1.2);
-
-        // Reubicar los scrollUp/scrollDown a la izquierda
         scrollUpButtonMesh.position.set(-planeWidth*0.5 - 0.1, planeHeight*0.35, -1.2);
         scrollDownButtonMesh.position.set(-planeWidth*0.5 - 0.1, -planeHeight*0.35, -1.2);
       }
@@ -1010,11 +1028,7 @@
           let objectsToIntersect = [];
           if (!gameOver) {
             objectsToIntersect = answers;
-          } else {
-            // Si ya acabó, podríamos tocar scroll o reiniciar (lo manejamos con checkButtonCollision())
-            // Dejarlo vacío aquí para que no choquen duplicado
           }
-
           const intersects = raycaster.intersectObjects(objectsToIntersect);
           if (intersects.length > 0 && !hasCollided) {
             const panel = intersects[0].object;
@@ -1022,6 +1036,7 @@
             if (!gameOver) {
               if (panel.userData.answer === correctAnswer) {
                 correctCount++;
+                console.log("¡Tap en respuesta CORRECTA!");
                 const successSound = document.getElementById('successSound');
                 const successClone = successSound.cloneNode();
                 successClone.play().catch((e) => console.error(e));
@@ -1037,6 +1052,7 @@
                   hasCollided = false;
                 }, 1000);
               } else {
+                console.log("¡Tap en respuesta ERRÓNEA!");
                 wrongCount++;
                 const errorSound = document.getElementById('errorSound');
                 const errorClone = errorSound.cloneNode();
