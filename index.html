@@ -33,7 +33,7 @@
       }
       #overlay a {
         font-size: 14px;
-        margin-top: -10px;
+        margin-top: 0px;
         margin-bottom: 20px;
         color: blue;
         text-decoration: none;
@@ -62,6 +62,24 @@
         #overlay img {
           max-width: 70%;
         }
+@media (orientation: landscape) {
+  /* Evita que el overlay se quede "aplastado" en pantallas anchas pero muy bajas */
+  #overlay {
+    height: auto;         /* Quita el 100% fijo */
+    min-height: 100vh;    /* Fuerza que al menos ocupe el alto completo de la pantalla */
+  }
+
+  /* Si quieres ajustar la imagen para que no se haga gigante ni aplaste la tabla */
+  #overlay img {
+    max-width: 30%; /* en vez de 70% */
+  }
+
+  /* Podrías también dar más altura al contenedor de la tabla de preview */
+  #leaderboardPreview {
+    max-height: 200px; /* o el valor que quieras */
+  }
+}
+
       }
       /* Tabla de clasificación en el overlay */
       #leaderboardPreview {
