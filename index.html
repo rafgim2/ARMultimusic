@@ -13,7 +13,7 @@
     /* Overlay del menú inicial */
     #overlay {
       position: absolute;
-      padding-top: 100px; /* Ajusta este valor según necesites */
+      padding-top: 100px;
       top: 0;
       left: 0;
       width: 100%;
@@ -34,7 +34,6 @@
       color: blue;
       text-decoration: none;
     }
-    /* Selector de respuestas */
     #overlay .respuestas-container {
       display: flex;
       align-items: center;
@@ -48,7 +47,7 @@
     #overlay .respuestas-container select {
       font-size: 14px;
     }
-    /* Estilos responsivos para la imagen */
+    /* Imagen responsiva */
     #overlay img {
       border-radius: 20px;
       max-width: 15%;
@@ -102,16 +101,13 @@
     const collisionThreshold = 0.2;
     const sparksSystems = [];
 
-    // Contadores
     let correctCount = 0;
     let wrongCount = 0;
 
-    // Duración del juego
     let gameStartTime = 0;
     const gameDuration = 60; // segundos
     let gameOver = false;
 
-    // Mallas en AR
     let countdownMesh = null,
         countdownCanvas = null,
         countdownCtx = null,
@@ -121,10 +117,9 @@
         scoreCtx = null,
         scoreTexture = null;
 
-    // Nuevas mallas de final de partida
-    let voiceButtonMesh = null;   // Panel para iniciar reconocimiento de voz
-    let restartButtonMesh = null; // Botón de "Reiniciar"
-    let leaderboardMesh = null;   // Para mostrar la clasificación
+    let voiceButtonMesh = null;   
+    let restartButtonMesh = null; 
+    let leaderboardMesh = null;   
 
     let selectedNumAnswers = 4;
 
@@ -135,7 +130,9 @@
 
     const resolutionFactor = 4;
 
-    // ========== FUNCIONES GRÁFICAS BÁSICAS ==========
+    // =========================================================
+    //             FUNCIONES GRÁFICAS DE APOYO
+    // =========================================================
 
     function drawRoundedRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
@@ -166,7 +163,9 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    // ========== INICIALIZACIÓN AR ==========
+    // =========================================================
+    //               INICIALIZACIÓN DE LA ESCENA
+    // =========================================================
 
     function init() {
       scene = new THREE.Scene();
@@ -204,7 +203,6 @@
         </div>
       `;
 
-      // Botón AR con estilos
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       const arButton = ARButton.createButton(renderer, { requiredFeatures });
@@ -241,7 +239,9 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // ========== CONTEO REGRESIVO Y DISPLAY DE MARCADORES ==========
+    // =========================================================
+    //         CONTEO REGRESIVO Y MARCADORES EN PANTALLA
+    // =========================================================
 
     function startCountdown() {
       gameStartTime = performance.now();
@@ -314,7 +314,9 @@
       scoreTexture.needsUpdate = true;
     }
 
-    // ========== GENERADOR DE PREGUNTAS Y RESPUESTAS ==========
+    // =========================================================
+    //            GENERADOR DE PREGUNTAS Y RESPUESTAS
+    // =========================================================
 
     function generateQuestion() {
       const a = Math.floor(Math.random() * 10) + 1;
@@ -359,8 +361,8 @@
 
     function createAnswerObjects(numAnswers, initialCreation) {
       if (initialCreation) {
-        const minArc = 1.39626;
-        const maxArc = Math.PI;
+        const minArc = 1.39626; // ~80°
+        const maxArc = Math.PI; // 180°
         let arcAngle;
         if (numAnswers <= 4) {
           arcAngle = minArc;
@@ -463,7 +465,10 @@
       createAnswerObjects(selectedNumAnswers, false);
     }
 
-    // ========== EFECTO CHISPAS ==========
+    // =========================================================
+    //                 EFECTO DE CHISPAS
+    // =========================================================
+
     function createSparksEffect(position) {
       const count = 100;
       const positions = new Float32Array(count * 3);
@@ -502,7 +507,9 @@
       });
     }
 
-    // ========== BUCLE DE ANIMACIÓN ==========
+    // =========================================================
+    //               BUCLE DE ANIMACIÓN PRINCIPAL
+    // =========================================================
 
     function animate() {
       renderer.setAnimationLoop(render);
@@ -517,7 +524,7 @@
         panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
       });
 
-      // Iniciar el conteo regresivo la primera vez que la escena esté lista
+      // Iniciar conteo regresivo
       if (gameReady && !countdownStarted) {
         startCountdown();
         const timerSound = document.getElementById('timerSound');
@@ -559,7 +566,7 @@
         }
       }
 
-      // Interacciones (manos o cámara)
+      // Sesión XR y puntos de interacción
       const session = renderer.xr.getSession();
       let interactionPoints = [];
       if (session && xrFrame) {
@@ -581,14 +588,13 @@
           }
         }
       }
-      // Si no se detecta la mano, se usa la posición de la cámara como "punto de interacción"
       if (interactionPoints.length === 0) {
         let cameraPos = new THREE.Vector3();
         camera.getWorldPosition(cameraPos);
         interactionPoints.push(cameraPos);
       }
 
-      // Lógica de colisiones
+      // Lógica de colisión
       if (!gameOver) {
         for (let panel of answers) {
           const panelPos = new THREE.Vector3();
@@ -629,7 +635,7 @@
           }
         }
       } else {
-        // Juego finalizado: interactuar con "Habla tu nombre" o "Reiniciar"
+        // Interactuar con "Habla tu nombre" o "Reiniciar"
         if (voiceButtonMesh && voiceButtonMesh.visible) {
           const buttonPos = new THREE.Vector3();
           voiceButtonMesh.getWorldPosition(buttonPos);
@@ -638,7 +644,7 @@
               hasCollided = true;
               createSparksEffect(voiceButtonMesh.position);
               startVoiceRecognition();
-              // Tras iniciar reconocimiento, podemos ocultar el botón
+              // Ocultamos el botón tras iniciar la escucha
               setTimeout(() => {
                 voiceButtonMesh.visible = false;
                 hasCollided = false;
@@ -669,7 +675,9 @@
       }
     }
 
-    // ========== FIN DEL JUEGO Y REINICIO ==========
+    // =========================================================
+    //                    FIN DEL JUEGO
+    // =========================================================
 
     function endGame() {
       gameOver = true;
@@ -680,9 +688,7 @@
       answers.forEach((panel) => scene.remove(panel));
       answers = [];
 
-      // Creamos sólo 2 paneles:
-      // 1) Botón para reconocimiento de voz (nombre del jugador)
-      // 2) Botón para reiniciar
+      // Creamos solo 2 paneles
       voiceButtonMesh = createButton("Habla tu Nombre");
       voiceButtonMesh.position.set(0, 0, -0.8);
       scene.add(voiceButtonMesh);
@@ -716,7 +722,6 @@
     }
 
     function restartGame() {
-      // Elimina leaderboardMesh, si existe
       if (leaderboardMesh) {
         scene.remove(leaderboardMesh);
         leaderboardMesh = null;
@@ -743,10 +748,11 @@
       gameReady = true;
     }
 
-    // ========== RECONOCIMIENTO DE VOZ ==========
+    // =========================================================
+    //            RECONOCIMIENTO DE VOZ (NOMBRE)
+    // =========================================================
 
     function startVoiceRecognition() {
-      // Utiliza webkitSpeechRecognition (Chrome/Android)
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         alert("Este navegador no soporta reconocimiento de voz");
@@ -761,7 +767,6 @@
       recognition.onresult = (event) => {
         let transcript = event.results[0][0].transcript;
         console.log("Reconocido:", transcript);
-        // Guardar puntuación en Firestore
         submitScoreToFirestore(transcript.trim());
       };
       recognition.onerror = (event) => {
@@ -769,16 +774,18 @@
       };
     }
 
-    // ========== FIRESTORE: GUARDAR Y MOSTRAR CLASIFICACIÓN ==========
+    // =========================================================
+    //           FIRESTORE: GUARDAR Y MOSTRAR RANKING
+    // =========================================================
 
     async function submitScoreToFirestore(playerName) {
       try {
-        // Guarda un documento en la colección "leaderboard"
+        // Guardamos la partida
         await db.collection("leaderboard").add({
           name: playerName,
           correctCount: correctCount,
           wrongCount: wrongCount,
-          numAnswers: selectedNumAnswers,
+          numAnswers: selectedNumAnswers, // Asegúrate de que sea número
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         console.log("Datos guardados en Firestore");
@@ -790,22 +797,22 @@
     }
 
     async function showLeaderboard() {
-      // Elimina cualquier leaderboard anterior
+      // Elimina un ranking anterior si existe
       if (leaderboardMesh) {
         scene.remove(leaderboardMesh);
         leaderboardMesh = null;
       }
-
-      // Consulta la colección "leaderboard" filtrando por numAnswers
       try {
+        // Consulta Firestore con where() y orderBy()
         const snapshot = await db.collection("leaderboard")
           .where("numAnswers", "==", selectedNumAnswers)
           .orderBy("correctCount", "desc")
           .limit(10)
           .get();
 
+        console.log("Documentos en la consulta: ", snapshot.size);
+
         const docs = snapshot.docs;
-        // Crear texto con ranking
         let textLines = [];
         textLines.push(`TOP 10 - Respuestas: ${selectedNumAnswers}`);
         textLines.push("Pos | Nombre | Aciertos-Fallos");
@@ -817,12 +824,18 @@
           textLines.push(line);
           pos++;
         }
-        // Mostrarlo en un solo panel
+        if (docs.length === 0) {
+          textLines.push("No hay registros todavía");
+        }
+        // Creamos el panel
         leaderboardMesh = createLeaderboardPanel(textLines);
-        leaderboardMesh.position.set(0, 0.2, -0.8);
+        // Lo situamos un poco más cerca
+        leaderboardMesh.position.set(0, 0.25, -0.8);
         scene.add(leaderboardMesh);
       } catch (error) {
         console.error("Error al obtener leaderboard:", error);
+        // Si aquí te pide un índice, ve a la consola y créalo con los campos:
+        //   numAnswers (ASC/DESC, da igual en ==) y correctCount (DESC)
       }
     }
 
@@ -856,7 +869,9 @@
       return mesh;
     }
 
-    // ========== EVENTOS TÁCTILES (TOUCH) ==========
+    // =========================================================
+    //            EVENTOS TOUCH PARA MÓVILES
+    // =========================================================
 
     window.addEventListener(
       'touchstart',
@@ -921,7 +936,6 @@
             }
           }
         } else {
-          // Intersectar con voiceButtonMesh o restartButtonMesh
           let objects = [];
           if (voiceButtonMesh && voiceButtonMesh.visible) objects.push(voiceButtonMesh);
           if (restartButtonMesh && restartButtonMesh.visible) objects.push(restartButtonMesh);
@@ -954,7 +968,9 @@
       false
     );
 
-    // ========== ARRANQUE ==========
+    // =========================================================
+    //               INICIO DE TODO
+    // =========================================================
 
     init();
     animate();
