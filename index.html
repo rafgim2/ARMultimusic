@@ -13,13 +13,12 @@
       /* Overlay del menú inicial */
       #overlay {
         position: absolute;
-        padding-top: 100px; /* Ajusta este valor según necesites */
+        padding-top: 100px;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         background-color: orange;
-        border: 0px solid blue;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
@@ -35,7 +34,6 @@
         color: blue;
         text-decoration: none;
       }
-      /* Contenedor para el selector de respuestas */
       #overlay .respuestas-container {
         display: flex;
         align-items: center;
@@ -49,32 +47,79 @@
       #overlay .respuestas-container select {
         font-size: 14px;
       }
-      /* Estilos responsivos para la imagen */
       #overlay img {
         border-radius: 20px;
         max-width: 15%;
       }
       @media (orientation: portrait) {
-        /* En móviles verticales se usa un tamaño mayor */
         #overlay img {
           max-width: 70%;
         }
       }
+      /* Estilos para el overlay final de puntuación */
+      #scoreOverlay {
+        display: none;
+        position: absolute;
+        top: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        z-index: 20;
+      }
+      #scoreOverlay h2, #scoreOverlay h3 { margin: 10px 0; }
+      #scoreOverlay input, #scoreOverlay button { margin: 5px; }
+      #scoreOverlay ul { list-style: none; padding: 0; }
+      #scoreOverlay li { margin: 3px 0; }
     </style>
   </head>
   <body>
     <!-- Audios: acierto, error, timer y beep -->
     <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
     <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
-    <!-- Se ha quitado el audio timer5; se utiliza timer7 -->
     <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
     <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/beep.wav" preload="auto"></audio>
 
+    <!-- Overlay de puntuación final -->
+    <div id="scoreOverlay">
+      <h2>Fin del Juego</h2>
+      <p>Aciertos: <span id="finalCorrect"></span> | Fallos: <span id="finalWrong"></span></p>
+      <p>Opciones de respuestas: <span id="finalOptions"></span></p>
+      <input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding: 10px; font-size: 16px;">
+      <button id="submitScore" style="padding: 10px 20px; font-size: 16px; margin-left: 10px;">Enviar Puntaje</button>
+      <div id="leaderboard" style="margin-top: 20px;">
+        <h3>Tabla de Clasificación</h3>
+        <ul id="leaderboardList"></ul>
+      </div>
+      <button id="restartGameButton" style="padding: 10px 20px; font-size: 16px; margin-top: 10px;">Reiniciar Juego</button>
+    </div>
+
     <script type="module">
+      // Importar módulos de Firebase (versión modular)
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+      import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+      // Configuración de Firebase (usa los datos que ya tienes)
+      const firebaseConfig = {
+        apiKey: "AIzaSyD5EAMg-0p54f8bPq8SVdZ_ePg5Xso3cmg",
+        authDomain: "arm1-acbba.firebaseapp.com",
+        projectId: "arm1-acbba",
+        storageBucket: "arm1-acbba.firebasestorage.app",
+        messagingSenderId: "408825932019",
+        appId: "1:408825932019:web:10f2079b590b4c9ca3af86",
+        measurementId: "G-S78TM6PVRL"
+      };
+
+      // Inicializar Firebase y Firestore
+      const appFirebase = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(appFirebase);
+      const db = getFirestore(appFirebase);
+
+      // Importar Three.js y ARButton
       import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-      // Si no es móvil, se solicita además hand-tracking
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      const requiredFeatures = isMobile ? ['hit-test'] : ['hit-test', 'hand-tracking'];
       import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
 
       let camera, scene, renderer;
@@ -97,17 +142,13 @@
 
       // Mallas en AR: cuenta atrás y score
       let countdownMesh = null,
-        countdownCanvas = null,
-        countdownCtx = null,
-        countdownTexture = null;
+          countdownCanvas = null,
+          countdownCtx = null,
+          countdownTexture = null;
       let scoreMesh = null,
-        scoreCanvas = null,
-        scoreCtx = null,
-        scoreTexture = null;
-
-      // Botón final: se mantiene solo el de Reiniciar
-      let restartButtonMesh = null,
-        finalMessageMesh = null;
+          scoreCanvas = null,
+          scoreCtx = null,
+          scoreTexture = null;
 
       // Número de respuestas seleccionado
       let selectedNumAnswers = 4;
@@ -149,7 +190,7 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
        
-        // Dibujar el rectángulo redondeado (la parte externa quedará transparente)
+        // Dibujar el rectángulo redondeado
         ctx.fillStyle = "#007BFF";
         drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
         
@@ -162,7 +203,6 @@
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
         mesh.material.map = texture;
-        // Habilitamos la transparencia para que se respeten los bordes redondeados
         mesh.material.transparent = true;
         mesh.material.needsUpdate = true;
         mesh.userData.answer = value;
@@ -220,7 +260,7 @@
           '</div>';
 
         // Crear el botón AR con estilos personalizados
-        const arButton = ARButton.createButton(renderer, { requiredFeatures });
+        const arButton = ARButton.createButton(renderer, { requiredFeatures: (/Mobi|Android/i.test(navigator.userAgent)) ? ['hit-test'] : ['hit-test', 'hand-tracking'] });
         if (arButton.parentNode) {
           arButton.parentNode.removeChild(arButton);
         }
@@ -243,8 +283,6 @@
           overlay.remove();
           generateQuestion();
           createScoreDisplay();
-
-          // Se marca que el juego ya está listo
           gameReady = true;
         });
       }
@@ -670,76 +708,49 @@
         }
       }
 
+      // Función para mostrar el overlay final y enviar datos a Firestore
       function endGame() {
         gameOver = true;
+        // Remover elementos AR
         if (questionMesh) scene.remove(questionMesh);
         if (countdownMesh) scene.remove(countdownMesh);
         if (scoreMesh) scene.remove(scoreMesh);
         answers.forEach((panel) => scene.remove(panel));
 
-        const gameOverCanvas = document.createElement('canvas');
-        gameOverCanvas.width = 256 * resolutionFactor;
-        gameOverCanvas.height = 128 * resolutionFactor;
-        const gameOverCtx = gameOverCanvas.getContext('2d');
-        
-        gameOverCtx.fillStyle = "#007BFF";
-        drawRoundedRect(gameOverCtx, 0, 0, gameOverCanvas.width, gameOverCanvas.height, 10 * resolutionFactor);
-        gameOverCtx.fillStyle = "#FFFFFF";
-        gameOverCtx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-        gameOverCtx.textAlign = "center";
-        gameOverCtx.textBaseline = "middle";
-        gameOverCtx.fillText("Fin del Juego", gameOverCanvas.width / 2, 30 * resolutionFactor);
-        gameOverCtx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
-        gameOverCtx.fillText(`Aciertos: ${correctCount}`, gameOverCanvas.width / 2, 65 * resolutionFactor);
-        gameOverCtx.fillText(`Fallos: ${wrongCount}`, gameOverCanvas.width / 2, 100 * resolutionFactor);
-        const gameOverTexture = new THREE.CanvasTexture(gameOverCanvas);
-        gameOverTexture.minFilter = THREE.LinearFilter;
-        gameOverTexture.magFilter = THREE.LinearFilter;
-        const geometry = new THREE.PlaneGeometry(0.5, 0.25);
-        const material = new THREE.MeshBasicMaterial({ map: gameOverTexture, transparent: true });
-        finalMessageMesh = new THREE.Mesh(geometry, material);
-        finalMessageMesh.position.set(0, 0, -0.8);
-        scene.add(finalMessageMesh);
+        // Mostrar overlay de puntuación
+        const scoreOverlay = document.getElementById('scoreOverlay');
+        scoreOverlay.style.display = 'block';
+        document.getElementById('finalCorrect').innerText = correctCount;
+        document.getElementById('finalWrong').innerText = wrongCount;
+        document.getElementById('finalOptions').innerText = selectedNumAnswers;
 
-        restartButtonMesh = createButton("Reiniciar");
-        restartButtonMesh.position.set(0, -0.3, -0.8);
-        scene.add(restartButtonMesh);
+        // Enviar puntaje y actualizar tabla al pulsar "Enviar Puntaje"
+        document.getElementById('submitScore').onclick = async () => {
+          const playerName = document.getElementById('playerName').value;
+          if (playerName) {
+            await submitScore(playerName, correctCount, wrongCount, selectedNumAnswers);
+            await getLeaderboard(selectedNumAnswers);
+          }
+        };
+
+        // Reiniciar juego desde overlay
+        document.getElementById('restartGameButton').onclick = () => {
+          scoreOverlay.style.display = 'none';
+          restartGame();
+        };
       }
 
-      function createButton(text) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128 * resolutionFactor;
-        canvas.height = 64 * resolutionFactor;
-        const ctx = canvas.getContext('2d');
-        
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const geom = new THREE.PlaneGeometry(0.2, 0.1);
-        const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        return new THREE.Mesh(geom, mat);
-      }
-
+      // Función para reiniciar el juego
       function restartGame() {
-        if (finalMessageMesh) scene.remove(finalMessageMesh);
-        if (restartButtonMesh) scene.remove(restartButtonMesh);
-        if (questionMesh) {
-          scene.remove(questionMesh);
-          questionMesh = null;
-        }
+        const scoreOverlay = document.getElementById('scoreOverlay');
+        scoreOverlay.style.display = 'none';
         correctCount = 0;
         wrongCount = 0;
         gameStartTime = performance.now();
         gameOver = false;
         answers.forEach((panel) => scene.remove(panel));
         answers = [];
+        originalAnswerTransforms = null;
         createAnswerObjects(selectedNumAnswers, true);
         generateQuestion();
         countdownStarted = false;
@@ -749,6 +760,46 @@
         timerSound.currentTime = 0;
         timerSound.loop = false;
         timerSound.play().catch((e) => console.error(e));
+      }
+
+      // Función para enviar el puntaje a Firestore
+      async function submitScore(playerName, correctCount, wrongCount, numOptions) {
+        try {
+          const docRef = await addDoc(collection(db, "leaderboards"), {
+            name: playerName,
+            correctCount: correctCount,
+            wrongCount: wrongCount,
+            numOptions: numOptions,
+            timestamp: serverTimestamp()
+          });
+          console.log("Puntuación guardada con ID:", docRef.id);
+        } catch (e) {
+          console.error("Error al guardar la puntuación:", e);
+        }
+      }
+
+      // Función para obtener y mostrar la tabla de clasificación
+      async function getLeaderboard(numOptions) {
+        const leaderboardList = document.getElementById('leaderboardList');
+        leaderboardList.innerHTML = "";
+        try {
+          const q = query(
+            collection(db, "leaderboards"),
+            orderBy("correctCount", "desc"),
+            limit(10)
+          );
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.numOptions === numOptions) {
+              const li = document.createElement('li');
+              li.textContent = `${data.name}: ${data.correctCount} aciertos, ${data.wrongCount} fallos`;
+              leaderboardList.appendChild(li);
+            }
+          });
+        } catch (e) {
+          console.error("Error al obtener la tabla de clasificación:", e);
+        }
       }
 
       window.addEventListener(
