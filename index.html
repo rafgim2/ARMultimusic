@@ -61,7 +61,7 @@
     </style>
   </head>
   <body>
-    <!-- Audios: acierto, error, timer y beep -->
+    <!-- Audios -->
     <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/acierto.wav" preload="auto"></audio>
     <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/error.wav" preload="auto"></audio>
     <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARMultimusic/main/timer7.mp3" preload="auto"></audio>
@@ -75,7 +75,7 @@
         getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp 
       } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-      // Configuración obtenida de Firebase Console
+      // Configuración (datos de tu proyecto)
       const firebaseConfig = {
         apiKey: "AIzaSyD5EAMg-0p54f8bPq8SVdZ_ePg5Xso3cmg",
         authDomain: "arm1-acbba.firebaseapp.com",
@@ -86,7 +86,6 @@
         measurementId: "G-S78TM6PVRL"
       };
 
-      // Inicializar Firebase
       const appFirebase = initializeApp(firebaseConfig);
       const analytics = getAnalytics(appFirebase);
       const db = getFirestore(appFirebase);
@@ -121,19 +120,16 @@
           scoreTexture = null;
 
       let restartButtonMesh = null;
-      // Número de respuestas seleccionado
       let selectedNumAnswers = 4;
-
       let originalAnswerTransforms = null;
       let beepPlayed = false;
       let gameReady = false;
       let countdownStarted = false;
       const resolutionFactor = 4;
 
-      // Variable global para el nombre del jugador
+      // Nombre del jugador
       let playerName = "";
 
-      // Función para dibujar un rectángulo redondeado
       function drawRoundedRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -149,7 +145,6 @@
         ctx.fill();
       }
 
-      // Actualiza el panel de respuestas con mayor resolución
       function updateAnswerPanel(mesh, value) {
         const canvas = document.createElement('canvas');
         canvas.width = 256 * resolutionFactor;
@@ -189,7 +184,6 @@
       function init() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -202,7 +196,7 @@
 
         window.addEventListener('resize', onWindowResize, false);
 
-        // Crear overlay inicial con selector de respuestas y campo para nombre
+        // Pantalla inicial: selector de respuestas y campo para nombre
         const overlay = document.createElement('div');
         overlay.id = 'overlay';
         overlay.innerHTML =
@@ -222,7 +216,6 @@
           '</div>' +
           '<input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding:10px; font-size:16px; margin-bottom:20px;">';
 
-        // Crear el botón AR personalizado
         const arButton = ARButton.createButton(renderer, { 
           requiredFeatures: /Mobi|Android/i.test(navigator.userAgent) ? ['hit-test'] : ['hit-test','hand-tracking'] 
         });
@@ -244,7 +237,6 @@
 
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-          // Obtener el nombre del jugador; si está vacío se asigna "Jugador"
           playerName = document.getElementById('playerName').value || "Jugador";
           createAnswerObjects(selectedNumAnswers, true);
           overlay.remove();
@@ -295,9 +287,8 @@
         const elapsed = (performance.now() - gameStartTime) / 1000;
         const remaining = Math.max(0, gameDuration - elapsed);
         const seconds = Math.floor(remaining);
-        const timeColor = remaining <= 10 ? "red" : "#FFFFFF";
         countdownCtx.clearRect(0, 0, countdownCanvas.width, countdownCanvas.height);
-        countdownCtx.fillStyle = timeColor;
+        countdownCtx.fillStyle = remaining <= 10 ? "red" : "#FFFFFF";
         countdownCtx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
         countdownCtx.textAlign = "center";
         countdownCtx.textBaseline = "middle";
@@ -307,14 +298,12 @@
           countdownCanvas.height / 2
         );
         countdownTexture.needsUpdate = true;
-
         if (remaining <= 10 && !beepPlayed) {
           const beepSound = document.getElementById('beepSound');
           beepSound.currentTime = 0;
           beepSound.play().catch((e) => console.error(e));
           beepPlayed = true;
         }
-
         return remaining;
       }
 
@@ -385,7 +374,6 @@
           const angleStart = -arcAngle / 2;
           const angleEnd = arcAngle / 2;
           const radius = 0.8;
-
           if (originalAnswerTransforms === null) {
             originalAnswerTransforms = [];
             for (let i = 0; i < numAnswers; i++) {
@@ -531,7 +519,6 @@
           const baseY = originalAnswerTransforms[index].position.y;
           panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
         });
-
         if (gameReady && !countdownStarted) {
           startCountdown();
           const timerSound = document.getElementById('timerSound');
@@ -539,7 +526,6 @@
           timerSound.play().catch((e) => console.error(e));
           countdownStarted = true;
         }
-
         const currentTime = performance.now();
         for (let i = sparksSystems.length - 1; i >= 0; i--) {
           const system = sparksSystems[i];
@@ -562,7 +548,6 @@
             sparksSystems.splice(i, 1);
           }
         }
-
         if (!gameOver) {
           const remaining = updateCountdown();
           updateScoreDisplay();
@@ -570,7 +555,6 @@
             endGame();
           }
         }
-
         const session = renderer.xr.getSession();
         let interactionPoints = [];
         if (session && xrFrame) {
@@ -597,7 +581,6 @@
           camera.getWorldPosition(cameraPos);
           interactionPoints.push(cameraPos);
         }
-
         if (!gameOver) {
           for (let panel of answers) {
             const panelPos = new THREE.Vector3();
@@ -661,7 +644,7 @@
         }
       }
 
-      // Al finalizar el juego se calcula el puntaje, se envía a Firestore y se muestra la tabla en AR
+      // Cuando se acaba el tiempo, se calcula el puntaje, se envía a Firestore y se muestra el leaderboard en AR
       function endGame() {
         gameOver = true;
         if (questionMesh) scene.remove(questionMesh);
@@ -670,7 +653,6 @@
         answers.forEach((panel) => scene.remove(panel));
 
         const finalScore = correctCount - wrongCount;
-
         submitScore(playerName, finalScore, selectedNumAnswers)
           .then(() => {
             showLeaderboard(selectedNumAnswers, finalScore);
@@ -681,7 +663,6 @@
           });
       }
 
-      // Envia la puntuación a Firestore
       async function submitScore(name, score, numAnswers) {
         try {
           const docRef = await addDoc(collection(db, "leaderboard"), {
@@ -697,7 +678,7 @@
         }
       }
 
-      // Muestra en AR la tabla de clasificación y un botón de reiniciar
+      // Aquí se crea el leaderboard y el botón de reiniciar y se añaden a la cámara para que se vean en AR
       function showLeaderboard(numAnswers, finalScore) {
         const q = query(
           collection(db, "leaderboard"),
@@ -718,7 +699,7 @@
             position++;
           });
 
-          // Crear canvas para dibujar la tabla
+          // Crear canvas para la tabla
           const canvas = document.createElement('canvas');
           const canvasWidth = 512 * resolutionFactor;
           const headerHeight = 50 * resolutionFactor;
@@ -728,24 +709,20 @@
           canvas.height = canvasHeight;
           const ctx = canvas.getContext('2d');
 
-          // Fondo de la tabla
           ctx.fillStyle = "#007BFF";
           ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-          // Título
           ctx.fillStyle = "#FFFFFF";
           ctx.font = `${30 * resolutionFactor}px Arial`;
           ctx.textAlign = "center";
           ctx.fillText(`Tabla de Clasificación (${numAnswers} respuestas)`, canvasWidth / 2, 40 * resolutionFactor);
 
-          // Cabecera de la tabla
           ctx.font = `${20 * resolutionFactor}px Arial`;
           ctx.fillStyle = "#CCCCCC";
           ctx.fillText("Pos", canvasWidth * 0.15, headerHeight + rowHeight / 2);
           ctx.fillText("Nombre", canvasWidth * 0.5, headerHeight + rowHeight / 2);
           ctx.fillText("Puntos", canvasWidth * 0.85, headerHeight + rowHeight / 2);
 
-          // Dibujar cada fila
           ctx.font = `${20 * resolutionFactor}px Arial`;
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
@@ -765,19 +742,19 @@
           const leaderboardGeometry = new THREE.PlaneGeometry(0.8, 0.8 * canvasHeight / canvasWidth);
           const leaderboardMaterial = new THREE.MeshBasicMaterial({ map: leaderboardTexture, transparent: true });
           const leaderboardMesh = new THREE.Mesh(leaderboardGeometry, leaderboardMaterial);
+          // Agregar el leaderboard a la cámara para que se vea en AR
+          camera.add(leaderboardMesh);
           leaderboardMesh.position.set(0, 0.2, -1);
-          scene.add(leaderboardMesh);
 
-          // Crear botón de reiniciar en AR
+          // Crear botón de reiniciar y agregarlo a la cámara
           restartButtonMesh = createButton("Reiniciar");
+          camera.add(restartButtonMesh);
           restartButtonMesh.position.set(0, -0.4, -1);
-          scene.add(restartButtonMesh);
         }).catch((error) => {
           console.error("Error obteniendo el leaderboard: ", error);
         });
       }
 
-      // Función para crear un botón (usado para reiniciar)
       function createButton(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 128 * resolutionFactor;
@@ -799,7 +776,17 @@
       }
 
       function restartGame() {
-        if (restartButtonMesh) scene.remove(restartButtonMesh);
+        // Remover leaderboard y botón de la cámara
+        if (restartButtonMesh) {
+          camera.remove(restartButtonMesh);
+          restartButtonMesh = null;
+        }
+        // Remover cualquier otro objeto de leaderboard (si se agregaron como hijos de la cámara)
+        camera.children.forEach(child => {
+          if (child.name === "leaderboard") {
+            camera.remove(child);
+          }
+        });
         if (questionMesh) {
           scene.remove(questionMesh);
           questionMesh = null;
@@ -827,8 +814,7 @@
           const successEl = document.getElementById('successSound');
           const errorEl = document.getElementById('errorSound');
           [successEl, errorEl].forEach((audioEl) => {
-            audioEl
-              .play()
+            audioEl.play()
               .then(() => {
                 audioEl.pause();
                 audioEl.currentTime = 0;
