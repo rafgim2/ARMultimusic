@@ -124,7 +124,7 @@
       async function updateLeaderboardPreview(numAnswers) {
         const collectionName = `leaderboard_${numAnswers}`;
         try {
-          let top3Query = query(
+          let top5Query = query(
             collection(db, collectionName),
             orderBy("score", "desc"),
             limit(3)
