@@ -174,9 +174,11 @@
       // Aumentamos un poco el umbral de colisión
       const collisionThreshold = 0.3;
 
-      // Contadores
+      // Contadores y variables de tiempo
       let correctCount = 0;
       let wrongCount = 0;
+      let currentQuestionStartTime = 0; // Inicia el tiempo al mostrar cada pregunta
+      let correctResponseTimes = [];    // Array para almacenar los tiempos de respuesta correctos
 
       // Tiempo de juego
       let gameStartTime = 0;
@@ -207,12 +209,8 @@
       const resolutionFactor = 4;
 
       // Nombre del jugador y número de respuestas
-      let playerName = ""; // MOD: sin valor por defecto
+      let playerName = "";
       let selectedNumAnswers = 4;
-
-      // Variables para medir tiempos de respuesta
-      let questionStartTime = 0; // MOD: tiempo de inicio de cada pregunta
-      let correctResponseTimes = []; // MOD: array para almacenar tiempos de respuestas correctas
 
       // Lista de sistemas de chispas
       const sparksSystems = [];
@@ -221,7 +219,7 @@
       let leaderboardResults = [];      
       let scoreboardStartIndex = 0;     
       const pageSize = 10;             
-      let playerPosition = null;       
+      let playerPosition = null;
 
       /***** 2.1) Funciones auxiliares *****/
       function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -396,7 +394,7 @@
         // Evento al iniciar la sesión AR
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-          playerName = document.getElementById('playerName').value; // MOD: No se asigna valor por defecto
+          playerName = document.getElementById('playerName').value || "Jugador";
 
           createAnswerObjects(selectedNumAnswers, true);
           overlay.remove();
@@ -483,9 +481,6 @@
         correctAnswer = a * b;
         questionText = `¿Cuánto es ${a} x ${b}?`;
 
-        // MOD: Registrar el inicio de la pregunta para medir el tiempo de respuesta
-        questionStartTime = performance.now();
-
         if (questionMesh) {
           scene.remove(questionMesh);
           questionMesh = null;
@@ -493,6 +488,9 @@
         updateQuestionPanel();
         updateAnswerObjects();
         beepPlayed = false;
+
+        // Inicia el cronómetro para esta pregunta
+        currentQuestionStartTime = performance.now();
       }
 
       // Panel de pregunta en AR
@@ -739,8 +737,8 @@
               if (distance < collisionThreshold && !hasCollided) {
                 hasCollided = true;
                 if (panel.userData.answer === correctAnswer) {
-                  // MOD: Medir tiempo de respuesta correcta
-                  let responseTime = performance.now() - questionStartTime;
+                  // Medir el tiempo de respuesta para la respuesta correcta (colisión 3D)
+                  let responseTime = performance.now() - currentQuestionStartTime;
                   correctResponseTimes.push(responseTime);
 
                   console.log("¡Colisión 3D con respuesta CORRECTA!");
@@ -823,6 +821,104 @@
         }
       }
 
+      // Touch en pantallas móviles (raycasting con taps)
+      window.addEventListener(
+        'touchstart',
+        function (event) {
+          if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+          const touch = event.touches[0];
+          const x = (touch.clientX / window.innerWidth) * 2 - 1;
+          const y = -(touch.clientY / window.innerHeight) * 2 + 1;
+          const mouseVector = new THREE.Vector2(x, y);
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouseVector, camera);
+
+          let objectsToIntersect = [];
+          if (!gameOver) {
+            // Durante el juego, solo paneles de respuesta
+            objectsToIntersect = answers;
+          } else {
+            // Al finalizar, los botones
+            let finalButtons = [];
+            if (restartButtonMesh) finalButtons.push(restartButtonMesh);
+            if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
+            if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
+            objectsToIntersect = finalButtons;
+          }
+
+          const intersects = raycaster.intersectObjects(objectsToIntersect);
+          if (intersects.length > 0 && !hasCollided) {
+            const objHit = intersects[0].object;
+            hasCollided = true;
+
+            // Si NO ha acabado, es un panel de respuesta
+            if (!gameOver) {
+              if (objHit.userData.answer === correctAnswer) {
+                // Medir el tiempo de respuesta para respuesta correcta (touch)
+                let responseTime = performance.now() - currentQuestionStartTime;
+                correctResponseTimes.push(responseTime);
+
+                console.log("¡Toque en pantalla - respuesta CORRECTA!");
+                correctCount++;
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch((e) => console.error(e));
+                createSparksEffect(objHit.position);
+                if (questionMesh) questionMesh.visible = false;
+                answers.forEach((a) => (a.visible = false));
+                setTimeout(() => {
+                  if (!gameOver) {
+                    generateQuestion();
+                    if (questionMesh) questionMesh.visible = true;
+                    answers.forEach((a) => (a.visible = true));
+                  }
+                  hasCollided = false;
+                }, 1000);
+              } else {
+                console.log("¡Toque en pantalla - respuesta ERRÓNEA!");
+                wrongCount++;
+                const errorSound = document.getElementById('errorSound');
+                const errorClone = errorSound.cloneNode();
+                errorClone.play().catch((e) => console.error(e));
+                answers.forEach((a) => a.material.color.set(0xff0000));
+                setTimeout(() => {
+                  answers.forEach((a) => a.material.color.set(0xffffff));
+                  hasCollided = false;
+                }, 500);
+              }
+            } else {
+              // Si ya acabó, es un botón
+              console.log("¡Toque en pantalla - botón final!");
+              if (objHit === restartButtonMesh) {
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch((e) => console.error(e));
+                createSparksEffect(objHit.position);
+                objHit.visible = false;
+                setTimeout(() => {
+                  restartGame();
+                  hasCollided = false;
+                }, 1000);
+              } else if (objHit === scrollUpButtonMesh) {
+                scoreboardStartIndex -= pageSize;
+                if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
+                drawLeaderboardSegment();
+                setTimeout(() => { hasCollided = false; }, 500);
+              } else if (objHit === scrollDownButtonMesh) {
+                scoreboardStartIndex += pageSize;
+                if (scoreboardStartIndex >= leaderboardResults.length) {
+                  scoreboardStartIndex = leaderboardResults.length - pageSize;
+                  if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
+                }
+                drawLeaderboardSegment();
+                setTimeout(() => { hasCollided = false; }, 500);
+              }
+            }
+          }
+        },
+        false
+      );
+
       /***** 2.4) Al finalizar el juego *****/
       async function endGame() {
         gameOver = true;
@@ -832,80 +928,77 @@
         if (scoreMesh) scene.remove(scoreMesh);
         answers.forEach((panel) => scene.remove(panel));
 
-        // MOD: Calcular la media de los tiempos de respuestas correctas y ajustar el puntaje
-        let averageResponseTime = 0;
+        // Calcular la media de los tiempos de respuesta correctos (convertida a segundos)
+        let avgTime = 0;
         if (correctResponseTimes.length > 0) {
-          averageResponseTime = correctResponseTimes.reduce((acc, t) => acc + t, 0) / correctResponseTimes.length;
+          let sumTimes = correctResponseTimes.reduce((acc, t) => acc + t, 0);
+          avgTime = sumTimes / correctResponseTimes.length / 1000;
         }
-        const rawScore = correctCount - wrongCount;
-        const finalScore = rawScore - averageResponseTime;
+        // Puntaje base: aciertos menos fallos, y se le resta la media de tiempos
+        const rawScore = (correctCount - wrongCount) - avgTime;
+        const finalScore = parseFloat(rawScore.toFixed(3)); // Máximo 3 decimales
 
         const collectionName = `leaderboard_${selectedNumAnswers}`;
 
-        // MOD: Si el jugador no puso nombre, no se sube la puntuación a las tablas online
-        if (playerName.trim() !== "") {
-          // Buscar doc con el mismo playerName
-          let docsFound = await getDocs(
-            query(
-              collection(db, collectionName),
-              where("name", "==", playerName),
-              limit(1)
-            )
-          );
-
-          if (!docsFound.empty) {
-            // Existe => se actualiza
-            const docToUpdate = docsFound.docs[0];
-            await updateDoc(doc(db, collectionName, docToUpdate.id), {
-              score: finalScore,
-              timestamp: serverTimestamp()
-            });
-          } else {
-            // No existe => se crea
-            await addDoc(collection(db, collectionName), {
-              name: playerName,
-              score: finalScore,
-              timestamp: serverTimestamp()
-            });
-          }
-
-          // Cargar y ordenar
-          let qLeaderboard = query(
+        // Buscar documento con el mismo playerName
+        let docsFound = await getDocs(
+          query(
             collection(db, collectionName),
-            orderBy("score", "desc")
-          );
-          let querySnapshot;
-          try {
-            querySnapshot = await getDocs(qLeaderboard);
-          } catch (err) {
-            console.error("Error consultando el leaderboard:", err);
-            return;
-          }
+            where("name", "==", playerName),
+            limit(1)
+          )
+        );
 
-          leaderboardResults = [];
-          let idx = 0;
-          querySnapshot.forEach((docSnap) => {
-            let data = docSnap.data();
-            leaderboardResults.push({ ...data, _index: idx });
-            idx++;
+        if (!docsFound.empty) {
+          // Existe => se actualiza
+          const docToUpdate = docsFound.docs[0];
+          await updateDoc(doc(db, collectionName, docToUpdate.id), {
+            score: finalScore,
+            timestamp: serverTimestamp()
           });
-
-          let playerIndex = leaderboardResults.findIndex(
-            (r) => r.name === playerName && r.score === finalScore
-          );
-          playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
-
-          scoreboardStartIndex = playerIndex - Math.floor(pageSize / 2);
-          if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-          if (scoreboardStartIndex >= leaderboardResults.length) {
-            scoreboardStartIndex = 0;
-          }
-
-          createLeaderboardMesh();
-          drawLeaderboardSegment();
         } else {
-          console.log("El jugador no ingresó nombre; la puntuación no se subirá a las tablas online.");
+          // No existe => se crea
+          await addDoc(collection(db, collectionName), {
+            name: playerName,
+            score: finalScore,
+            timestamp: serverTimestamp()
+          });
         }
+
+        // Cargar y ordenar
+        let qLeaderboard = query(
+          collection(db, collectionName),
+          orderBy("score", "desc")
+        );
+        let querySnapshot;
+        try {
+          querySnapshot = await getDocs(qLeaderboard);
+        } catch (err) {
+          console.error("Error consultando el leaderboard:", err);
+          return;
+        }
+
+        leaderboardResults = [];
+        let idx = 0;
+        querySnapshot.forEach((docSnap) => {
+          let data = docSnap.data();
+          leaderboardResults.push({ ...data, _index: idx });
+          idx++;
+        });
+
+        let playerIndex = leaderboardResults.findIndex(
+          (r) => r.name === playerName && r.score === finalScore
+        );
+        playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
+
+        scoreboardStartIndex = playerIndex - Math.floor(pageSize / 2);
+        if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
+        if (scoreboardStartIndex >= leaderboardResults.length) {
+          scoreboardStartIndex = 0;
+        }
+
+        createLeaderboardMesh();
+        drawLeaderboardSegment();
       }
 
       // Crear la malla "leaderboardMesh" + botones
@@ -926,28 +1019,34 @@
         lbTexture.magFilter = THREE.LinearFilter;
 
         const planeWidth = 1.2; 
+        // Lo ajustaremos luego en drawLeaderboardSegment
         const planeHeight = 1.0;  
         const lbGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
         const lbMaterial = new THREE.MeshBasicMaterial({ map: lbTexture, transparent: true });
         leaderboardMesh = new THREE.Mesh(lbGeometry, lbMaterial);
 
+        // Guardar refs
         leaderboardMesh.userData.canvas = dummyCanvas;
         leaderboardMesh.userData.ctx = ctx;
         leaderboardMesh.userData.texture = lbTexture;
         leaderboardMesh.userData.planeWidth = planeWidth;
         leaderboardMesh.userData.planeHeight = planeHeight;
 
+        // Lo ponemos a z=-1.2
         leaderboardMesh.position.set(0, 0, -1.2);
         scene.add(leaderboardMesh);
 
+        // Botón Reiniciar: lo ponemos un poco más cerca => -1.1
         restartButtonMesh = createButton("Reiniciar");
         restartButtonMesh.position.set(0, -0.8, -1.1);
         scene.add(restartButtonMesh);
 
+        // Botón scrollUp (▲)
         scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
         scrollUpButtonMesh.position.set(-0.6, 0.5, -1.1); 
         scene.add(scrollUpButtonMesh);
 
+        // Botón scrollDown (▼)
         scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
         scrollDownButtonMesh.position.set(-0.6, -0.4, -1.1);
         scene.add(scrollDownButtonMesh);
@@ -968,9 +1067,11 @@
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
+        // Fondo semitransparente
         ctx.fillStyle = "rgba(0,0,0,0.7)";
         ctx.fillRect(0,0, canvasWidth, canvasHeight);
 
+        // Título
         ctx.fillStyle = "#FFFFFF";
         ctx.font = 'Bold ' + (28 * resolutionFactor) + 'px Arial';
         ctx.textAlign = "center";
@@ -981,6 +1082,7 @@
           lineHeight
         );
 
+        // Cabeceras
         const xPosPos   = 0.10 * canvasWidth; 
         const xPosName  = 0.40 * canvasWidth;
         const xPosScore = 0.75 * canvasWidth;
@@ -1027,8 +1129,10 @@
         leaderboardMesh.geometry.dispose();
         leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
 
+        // scoreboard a z=-1.2
         leaderboardMesh.position.set(0, 0.0, -1.2);
 
+        // Reposicionar botones un poco más “cerca” (z=-1.1)
         restartButtonMesh.position.set(0, -planeHeight*0.6, -1.1);
         scrollUpButtonMesh.position.set(-planeWidth*0.5 - 0.1, planeHeight*0.35, -1.1);
         scrollDownButtonMesh.position.set(-planeWidth*0.5 - 0.1, -planeHeight*0.35, -1.1);
@@ -1059,9 +1163,6 @@
         gameOver = false;
         answers.forEach((panel) => scene.remove(panel));
         answers = [];
-
-        // Reiniciar tiempos de respuesta
-        correctResponseTimes = [];
 
         createAnswerObjects(selectedNumAnswers, true);
         generateQuestion();
@@ -1094,102 +1195,7 @@
         { once: true }
       );
 
-      // Touch en pantallas móviles (raycasting con taps)
-      window.addEventListener(
-        'touchstart',
-        function (event) {
-          if (!/Mobi|Android/i.test(navigator.userAgent)) return;
-          const touch = event.touches[0];
-          const x = (touch.clientX / window.innerWidth) * 2 - 1;
-          const y = -(touch.clientY / window.innerHeight) * 2 + 1;
-          const mouseVector = new THREE.Vector2(x, y);
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(mouseVector, camera);
-
-          let objectsToIntersect = [];
-          if (!gameOver) {
-            objectsToIntersect = answers;
-          } else {
-            let finalButtons = [];
-            if (restartButtonMesh) finalButtons.push(restartButtonMesh);
-            if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
-            if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
-            objectsToIntersect = finalButtons;
-          }
-
-          const intersects = raycaster.intersectObjects(objectsToIntersect);
-          if (intersects.length > 0 && !hasCollided) {
-            const objHit = intersects[0].object;
-            hasCollided = true;
-
-            if (!gameOver) {
-              if (objHit.userData.answer === correctAnswer) {
-                // MOD: Medir tiempo de respuesta correcta
-                let responseTime = performance.now() - questionStartTime;
-                correctResponseTimes.push(responseTime);
-
-                console.log("¡Toque en pantalla - respuesta CORRECTA!");
-                correctCount++;
-                const successSound = document.getElementById('successSound');
-                const successClone = successSound.cloneNode();
-                successClone.play().catch((e) => console.error(e));
-                createSparksEffect(objHit.position);
-                if (questionMesh) questionMesh.visible = false;
-                answers.forEach((a) => (a.visible = false));
-                setTimeout(() => {
-                  if (!gameOver) {
-                    generateQuestion();
-                    if (questionMesh) questionMesh.visible = true;
-                    answers.forEach((a) => (a.visible = true));
-                  }
-                  hasCollided = false;
-                }, 1000);
-              } else {
-                console.log("¡Toque en pantalla - respuesta ERRÓNEA!");
-                wrongCount++;
-                const errorSound = document.getElementById('errorSound');
-                const errorClone = errorSound.cloneNode();
-                errorClone.play().catch((e) => console.error(e));
-                answers.forEach((a) => a.material.color.set(0xff0000));
-                setTimeout(() => {
-                  answers.forEach((a) => a.material.color.set(0xffffff));
-                  hasCollided = false;
-                }, 500);
-              }
-            } 
-            else {
-              console.log("¡Toque en pantalla - botón final!");
-              if (objHit === restartButtonMesh) {
-                const successSound = document.getElementById('successSound');
-                const successClone = successSound.cloneNode();
-                successClone.play().catch((e) => console.error(e));
-                createSparksEffect(objHit.position);
-                objHit.visible = false;
-                setTimeout(() => {
-                  restartGame();
-                  hasCollided = false;
-                }, 1000);
-              } else if (objHit === scrollUpButtonMesh) {
-                scoreboardStartIndex -= pageSize;
-                if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                drawLeaderboardSegment();
-                setTimeout(() => { hasCollided = false; }, 500);
-              } else if (objHit === scrollDownButtonMesh) {
-                scoreboardStartIndex += pageSize;
-                if (scoreboardStartIndex >= leaderboardResults.length) {
-                  scoreboardStartIndex = leaderboardResults.length - pageSize;
-                  if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                }
-                drawLeaderboardSegment();
-                setTimeout(() => { hasCollided = false; }, 500);
-              }
-            }
-          }
-        },
-        false
-      );
-
-      /***** 3) Iniciar *****/
+      // Iniciar AR y animación
       init();
       animate();
     </script>
