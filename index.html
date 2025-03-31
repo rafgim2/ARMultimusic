@@ -232,7 +232,7 @@
           canvas.width = size;
           canvas.height = size;
           const context = canvas.getContext('2d');
-          const gradient = context.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+          const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
           gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
           gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
           context.fillStyle = gradient;
@@ -315,7 +315,7 @@
         // Crear el botón AR EXACTAMENTE como en el código original
         const requiredFeatures = /Mobi|Android/i.test(navigator.userAgent)
           ? ['hit-test']
-          : ['hit-test','hand-tracking'];
+          : ['hit-test', 'hand-tracking'];
         const arButton = ARButton.createButton(renderer, { requiredFeatures });
         if (arButton.parentNode) {
           arButton.parentNode.removeChild(arButton);
@@ -331,7 +331,7 @@
         arButton.style.color = 'white';
         overlay.appendChild(arButton);
 
-        // Al iniciar la sesión AR, se arrancan las lógicas del juego (como en tu código original)
+        // Al iniciar la sesión AR, arrancar la lógica del juego
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
           playerName = document.getElementById('playerName').value || "Jugador";
@@ -431,7 +431,6 @@
             let arcAngle = (numAnswers <= 4) ? minArc : (numAnswers >= 10) ? maxArc : minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
             const angleStart = -arcAngle / 2;
             const angleEnd = arcAngle / 2;
-            // Reiniciar array de posiciones base
             originalAnswerTransforms = [];
             for (let i = 0; i < numAnswers; i++) {
               const canvas = document.createElement('canvas');
@@ -485,6 +484,7 @@
         function updateAnswerObjects() {
           createAnswerObjects(selectedNumAnswers, false);
         }
+        // Animación de chispas (igual que en el código original)
         function createSparksEffect(position) {
           const count = 100;
           const positions = new Float32Array(count * 3);
@@ -493,7 +493,11 @@
             positions[i * 3] = position.x;
             positions[i * 3 + 1] = position.y;
             positions[i * 3 + 2] = position.z;
-            velocities.push(new THREE.Vector3((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5));
+            velocities.push(new THREE.Vector3(
+              (Math.random() - 0.5) * 0.5,
+              (Math.random() - 0.5) * 0.5,
+              (Math.random() - 0.5) * 0.5
+            ));
           }
           const geometry = new THREE.BufferGeometry();
           geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -521,7 +525,7 @@
         }
         function render(timestamp, xrFrame) {
           renderer.render(scene, camera);
-          // Usar las posiciones base para la oscilación vertical
+          // Oscilación vertical usando la posición base (igual que antes)
           answers.forEach((panel, index) => {
             if (!originalAnswerTransforms[index]) return;
             const baseY = originalAnswerTransforms[index].position.y;
@@ -541,7 +545,7 @@
               endGame();
             }
           }
-          // Detección de colisiones (inputs de mano o posición de cámara)
+          // Detección de colisiones por inputs de mano (si hay XRFrame)
           const session = renderer.xr.getSession();
           let interactionPoints = [];
           if (session && xrFrame) {
@@ -551,7 +555,11 @@
                 if (indexTip) {
                   const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
                   if (jointPose) {
-                    interactionPoints.push(new THREE.Vector3(jointPose.transform.position.x, jointPose.transform.position.y, jointPose.transform.position.z));
+                    interactionPoints.push(new THREE.Vector3(
+                      jointPose.transform.position.x,
+                      jointPose.transform.position.y,
+                      jointPose.transform.position.z
+                    ));
                   }
                 }
               }
@@ -604,7 +612,7 @@
               }
             }
           } else {
-            // Detección de colisiones con botones (al finalizar)
+            // Detección de colisiones con botones (al finalizar el juego)
             let finalButtons = [];
             if (restartButtonMesh) finalButtons.push(restartButtonMesh);
             if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
@@ -714,10 +722,10 @@
           restartButtonMesh.position.set(0, -0.8, -1.1);
           scene.add(restartButtonMesh);
           scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
-          scrollUpButtonMesh.position.set(-0.6, 0.5, -1.1);
+          scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, 0.5, -1.1);
           scene.add(scrollUpButtonMesh);
           scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
-          scrollDownButtonMesh.position.set(-0.6, -0.4, -1.1);
+          scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -0.4, -1.1);
           scene.add(scrollDownButtonMesh);
         }
         function drawLeaderboardSegment() {
@@ -770,6 +778,82 @@
           timerSound.loop = false;
           timerSound.play().catch(e => console.error(e));
         }
+
+        // Agregar funcionalidad táctil para dispositivos móviles (raycasting sobre toques)
+        function onTouchStartAR(event) {
+          if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+          const touch = event.touches[0];
+          const x = (touch.clientX / window.innerWidth) * 2 - 1;
+          const y = -(touch.clientY / window.innerHeight) * 2 + 1;
+          const mouseVector = new THREE.Vector2(x, y);
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouseVector, camera);
+          let objectsToIntersect = [];
+          if (!gameOver) {
+            objectsToIntersect = answers;
+          } else {
+            let finalButtons = [];
+            if (restartButtonMesh) finalButtons.push(restartButtonMesh);
+            if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
+            if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
+            objectsToIntersect = finalButtons;
+          }
+          const intersects = raycaster.intersectObjects(objectsToIntersect);
+          if (intersects.length > 0 && !hasCollided) {
+            const objHit = intersects[0].object;
+            hasCollided = true;
+            if (!gameOver) {
+              if (objHit.userData.answer === correctAnswer) {
+                let responseTime = performance.now() - currentQuestionStartTime;
+                correctResponseTimes.push(responseTime);
+                correctCount++;
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch(e => console.error(e));
+                createSparksEffect(objHit.position);
+                if (questionMesh) questionMesh.visible = false;
+                answers.forEach(a => a.visible = false);
+                setTimeout(() => {
+                  if (!gameOver) {
+                    generateQuestion();
+                    if (questionMesh) questionMesh.visible = true;
+                    answers.forEach(a => a.visible = true);
+                  }
+                  hasCollided = false;
+                }, 1000);
+              } else {
+                wrongCount++;
+                const errorSound = document.getElementById('errorSound');
+                const errorClone = errorSound.cloneNode();
+                errorClone.play().catch(e => console.error(e));
+                answers.forEach(a => a.material.color.set(0xff0000));
+                setTimeout(() => {
+                  answers.forEach(a => a.material.color.set(0xffffff));
+                  hasCollided = false;
+                }, 500);
+              }
+            } else {
+              if (objHit === restartButtonMesh) {
+                const successSound = document.getElementById('successSound');
+                const successClone = successSound.cloneNode();
+                successClone.play().catch(e => console.error(e));
+                createSparksEffect(objHit.position);
+                objHit.visible = false;
+                setTimeout(() => {
+                  restartGame();
+                  hasCollided = false;
+                }, 1000);
+              } else if (objHit === scrollUpButtonMesh) {
+                setTimeout(() => { hasCollided = false; }, 500);
+              } else if (objHit === scrollDownButtonMesh) {
+                setTimeout(() => { hasCollided = false; }, 500);
+              }
+            }
+          }
+        }
+        window.addEventListener('touchstart', onTouchStartAR, false);
+
+        // Desbloquear audio en el primer toque (solo una vez)
         window.addEventListener('touchstart', function unlockAudio() {
           const audios = [document.getElementById('successSound'), document.getElementById('errorSound')];
           audios.forEach(audioEl => {
@@ -779,6 +863,7 @@
             }).catch(e => console.error(e));
           });
         }, { once: true });
+
         animate();
       }
 
@@ -856,12 +941,12 @@
         const answersDiv = document.getElementById('answers');
         answersDiv.innerHTML = '';
         let wrongAnswers = new Set();
-        while(wrongAnswers.size < selectedNumAnswers - 1) {
+        while (wrongAnswers.size < selectedNumAnswers - 1) {
           let wrong = Math.floor(Math.random() * 100) + 1;
           if (wrong !== correctAnswer) wrongAnswers.add(wrong);
         }
         const answersArray = [correctAnswer, ...wrongAnswers];
-        answersArray.sort(() => Math.random()-0.5);
+        answersArray.sort(() => Math.random() - 0.5);
         answersArray.forEach(ans => {
           const btn = document.createElement('button');
           btn.innerText = ans;
@@ -894,8 +979,8 @@
       }
       function startHTMLCountdown() {
         if (window.countdownInterval) clearInterval(window.countdownInterval);
-        window.countdownInterval = setInterval(()=>{
-          const elapsed = (performance.now() - gameStartTime)/1000;
+        window.countdownInterval = setInterval(() => {
+          const elapsed = (performance.now() - gameStartTime) / 1000;
           const remaining = Math.max(0, gameDuration - elapsed);
           document.getElementById('countdown').innerText = `Tiempo: ${Math.floor(remaining)}`;
           if (remaining <= 0) {
@@ -941,20 +1026,20 @@
         }
         let leaderboardResults = [];
         let idx = 0;
-        querySnapshot.forEach(docSnap=>{
+        querySnapshot.forEach(docSnap => {
           let data = docSnap.data();
           leaderboardResults.push({ ...data, _index: idx });
           idx++;
         });
-        let playerIndex = leaderboardResults.findIndex(r=> r.name===playerName && r.score===finalScore);
-        let playerPosition = (playerIndex>=0)? (playerIndex+1) : null;
+        let playerIndex = leaderboardResults.findIndex(r => r.name === playerName && r.score === finalScore);
+        let playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
         displayHTMLLeaderboard(leaderboardResults, playerPosition, finalScore);
         const gameContainer = document.getElementById('gameContainer');
         const restartBtn = document.createElement('button');
         restartBtn.innerText = "Reiniciar";
         restartBtn.style.fontSize = '24px';
         restartBtn.style.padding = '10px 20px';
-        restartBtn.onclick = ()=>{
+        restartBtn.onclick = () => {
           restartBtn.remove();
           document.getElementById('leaderboard').innerHTML = '';
           document.getElementById('question').innerText = '';
@@ -970,7 +1055,7 @@
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         const headerRow = document.createElement('tr');
-        ['Pos', 'Nombre', 'Puntos'].forEach(headerText=>{
+        ['Pos', 'Nombre', 'Puntos'].forEach(headerText => {
           const th = document.createElement('th');
           th.innerText = headerText;
           th.style.border = '1px solid #666';
@@ -979,14 +1064,14 @@
           headerRow.appendChild(th);
         });
         table.appendChild(headerRow);
-        leaderboardResults.forEach((data,index)=>{
+        leaderboardResults.forEach((data, index) => {
           const row = document.createElement('tr');
-          if (playerPosition !== null && (index+1)===playerPosition) {
+          if (playerPosition !== null && (index + 1) === playerPosition) {
             row.style.backgroundColor = 'green';
             row.style.color = '#fff';
           }
           const posCell = document.createElement('td');
-          posCell.innerText = index+1;
+          posCell.innerText = index + 1;
           posCell.style.border = '1px solid #666';
           posCell.style.padding = '4px';
           posCell.style.textAlign = 'center';
@@ -1008,7 +1093,7 @@
         leaderboardDiv.appendChild(table);
       }
 
-      /***** INICIALIZACIÓN COMÚN: Creación del overlay y elección de modo *****/
+      /***** INICIALIZACIÓN COMÚN: Overlay y elección de modo *****/
       window.addEventListener('DOMContentLoaded', async () => {
         const overlay = document.createElement('div');
         overlay.id = 'overlay';
@@ -1047,7 +1132,7 @@
           }
         }
         if (arSupported) {
-          // Si AR es soportado, se inicia el modo AR (usando el ARButton original)
+          // Si AR es soportado, se inicia el modo AR usando el ARButton original
           initAR();
         } else {
           // Si no, se muestra un botón "Iniciar Juego" para el modo HTML
@@ -1062,14 +1147,14 @@
           };
           overlay.appendChild(startBtn);
         }
-        // Desbloquear audio en el primer touch
+        // Desbloquear audio en el primer touch (solo una vez)
         window.addEventListener('touchstart', function unlockAudio() {
           const audios = [document.getElementById('successSound'), document.getElementById('errorSound')];
-          audios.forEach(audioEl=>{
-            audioEl.play().then(()=>{
+          audios.forEach(audioEl => {
+            audioEl.play().then(() => {
               audioEl.pause();
               audioEl.currentTime = 0;
-            }).catch(e=>console.error(e));
+            }).catch(e => console.error(e));
           });
         }, { once: true });
       });
