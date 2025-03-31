@@ -232,7 +232,7 @@
           canvas.width = size;
           canvas.height = size;
           const context = canvas.getContext('2d');
-          const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+          const gradient = context.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
           gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
           gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
           context.fillStyle = gradient;
@@ -525,12 +525,35 @@
         }
         function render(timestamp, xrFrame) {
           renderer.render(scene, camera);
-          // Oscilación vertical usando la posición base (igual que antes)
+          // Oscilación vertical usando la posición base (como en el código original)
           answers.forEach((panel, index) => {
             if (!originalAnswerTransforms[index]) return;
             const baseY = originalAnswerTransforms[index].position.y;
             panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
           });
+          // Actualizar chispas (spark systems)
+          const currentTime = performance.now();
+          for (let i = sparksSystems.length - 1; i >= 0; i--) {
+            const system = sparksSystems[i];
+            const dt = (currentTime - system.lastUpdate) / 1000;
+            system.lastUpdate = currentTime;
+            const positions = system.points.geometry.attributes.position.array;
+            for (let j = 0; j < system.velocities.length; j++) {
+              positions[j * 3] += system.velocities[j].x * dt;
+              positions[j * 3 + 1] += system.velocities[j].y * dt;
+              positions[j * 3 + 2] += system.velocities[j].z * dt;
+            }
+            system.points.geometry.attributes.position.needsUpdate = true;
+            const elapsedTime = currentTime - system.startTime;
+            if (elapsedTime > 1700) {
+              const fadeProgress = (elapsedTime - 1700) / 300;
+              system.points.material.opacity = Math.max(1 - fadeProgress, 0);
+            }
+            if (elapsedTime > 2000) {
+              scene.remove(system.points);
+              sparksSystems.splice(i, 1);
+            }
+          }
           if (gameReady && !countdownStarted) {
             startCountdown();
             const timerSound = document.getElementById('timerSound');
@@ -545,7 +568,7 @@
               endGame();
             }
           }
-          // Detección de colisiones por inputs de mano (si hay XRFrame)
+          // Detección de colisiones por inputs de mano o posición de cámara
           const session = renderer.xr.getSession();
           let interactionPoints = [];
           if (session && xrFrame) {
@@ -779,7 +802,7 @@
           timerSound.play().catch(e => console.error(e));
         }
 
-        // Agregar funcionalidad táctil para dispositivos móviles (raycasting sobre toques)
+        // Funcionalidad táctil para AR
         function onTouchStartAR(event) {
           if (!/Mobi|Android/i.test(navigator.userAgent)) return;
           const touch = event.touches[0];
@@ -941,12 +964,12 @@
         const answersDiv = document.getElementById('answers');
         answersDiv.innerHTML = '';
         let wrongAnswers = new Set();
-        while (wrongAnswers.size < selectedNumAnswers - 1) {
+        while(wrongAnswers.size < selectedNumAnswers - 1) {
           let wrong = Math.floor(Math.random() * 100) + 1;
           if (wrong !== correctAnswer) wrongAnswers.add(wrong);
         }
         const answersArray = [correctAnswer, ...wrongAnswers];
-        answersArray.sort(() => Math.random() - 0.5);
+        answersArray.sort(() => Math.random()-0.5);
         answersArray.forEach(ans => {
           const btn = document.createElement('button');
           btn.innerText = ans;
@@ -979,8 +1002,8 @@
       }
       function startHTMLCountdown() {
         if (window.countdownInterval) clearInterval(window.countdownInterval);
-        window.countdownInterval = setInterval(() => {
-          const elapsed = (performance.now() - gameStartTime) / 1000;
+        window.countdownInterval = setInterval(()=>{
+          const elapsed = (performance.now() - gameStartTime)/1000;
           const remaining = Math.max(0, gameDuration - elapsed);
           document.getElementById('countdown').innerText = `Tiempo: ${Math.floor(remaining)}`;
           if (remaining <= 0) {
@@ -1026,20 +1049,20 @@
         }
         let leaderboardResults = [];
         let idx = 0;
-        querySnapshot.forEach(docSnap => {
+        querySnapshot.forEach(docSnap=>{
           let data = docSnap.data();
           leaderboardResults.push({ ...data, _index: idx });
           idx++;
         });
-        let playerIndex = leaderboardResults.findIndex(r => r.name === playerName && r.score === finalScore);
-        let playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
+        let playerIndex = leaderboardResults.findIndex(r=> r.name===playerName && r.score===finalScore);
+        let playerPosition = (playerIndex>=0)? (playerIndex+1) : null;
         displayHTMLLeaderboard(leaderboardResults, playerPosition, finalScore);
         const gameContainer = document.getElementById('gameContainer');
         const restartBtn = document.createElement('button');
         restartBtn.innerText = "Reiniciar";
         restartBtn.style.fontSize = '24px';
         restartBtn.style.padding = '10px 20px';
-        restartBtn.onclick = () => {
+        restartBtn.onclick = ()=>{
           restartBtn.remove();
           document.getElementById('leaderboard').innerHTML = '';
           document.getElementById('question').innerText = '';
@@ -1055,7 +1078,7 @@
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         const headerRow = document.createElement('tr');
-        ['Pos', 'Nombre', 'Puntos'].forEach(headerText => {
+        ['Pos', 'Nombre', 'Puntos'].forEach(headerText=>{
           const th = document.createElement('th');
           th.innerText = headerText;
           th.style.border = '1px solid #666';
@@ -1064,14 +1087,14 @@
           headerRow.appendChild(th);
         });
         table.appendChild(headerRow);
-        leaderboardResults.forEach((data, index) => {
+        leaderboardResults.forEach((data,index)=>{
           const row = document.createElement('tr');
-          if (playerPosition !== null && (index + 1) === playerPosition) {
+          if (playerPosition !== null && (index+1)===playerPosition) {
             row.style.backgroundColor = 'green';
             row.style.color = '#fff';
           }
           const posCell = document.createElement('td');
-          posCell.innerText = index + 1;
+          posCell.innerText = index+1;
           posCell.style.border = '1px solid #666';
           posCell.style.padding = '4px';
           posCell.style.textAlign = 'center';
@@ -1147,14 +1170,14 @@
           };
           overlay.appendChild(startBtn);
         }
-        // Desbloquear audio en el primer touch (solo una vez)
+        // Desbloquear audio en el primer toque (solo una vez)
         window.addEventListener('touchstart', function unlockAudio() {
           const audios = [document.getElementById('successSound'), document.getElementById('errorSound')];
-          audios.forEach(audioEl => {
-            audioEl.play().then(() => {
+          audios.forEach(audioEl=>{
+            audioEl.play().then(()=>{
               audioEl.pause();
               audioEl.currentTime = 0;
-            }).catch(e => console.error(e));
+            }).catch(e=>console.error(e));
           });
         }, { once: true });
       });
