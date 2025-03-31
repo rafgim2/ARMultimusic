@@ -983,7 +983,7 @@
       function handleHTMLAnswer(selected, btn) {
         if (gameOver) return;
         if (selected === correctAnswer) {
-          btn.style.backgroundColor = "green";
+          btn.style.backgroundColor = "lightgreen";
           let responseTime = performance.now() - currentQuestionStartTime;
           correctResponseTimes.push(responseTime);
           correctCount++;
