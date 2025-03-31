@@ -84,14 +84,13 @@
         padding: 4px;
         text-align: center;
       }
-#playerName {
-  padding: 10px;
-  font-size: 16px;
-  margin-bottom: 20px;
-  box-sizing: border-box;
-  width: auto;
-}
-
+      #playerName {
+        padding: 10px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        box-sizing: border-box;
+        width: auto;
+      }
       /* Estilos para la versión HTML (modo “tradicional”) */
       #gameContainer {
         position: relative;
@@ -104,10 +103,10 @@
         align-items: center;
         justify-content: center;
       }
-button, input {
-  -webkit-appearance: none;
-  border-radius: 6px;
-}
+      button, input {
+        -webkit-appearance: none;
+        border-radius: 6px;
+      }
     </style>
   </head>
   <body>
@@ -221,7 +220,8 @@ button, input {
         let countdownStarted = false;
         let beepPlayed = false;
         let gameReady = false;
-        let originalAnswerTransforms = [];
+        // Variable para conservar la orientación original de los paneles de respuesta
+        let initialAnswerTransforms = null;
 
         // Funciones auxiliares de dibujo
         function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -436,49 +436,79 @@ button, input {
           questionMesh.position.set(0, 0.3, -0.8);
           scene.add(questionMesh);
         }
+        // Modificada: si initialCreation es true, se guarda la orientación original en initialAnswerTransforms para usarla en reinicios
         function createAnswerObjects(numAnswers, initialCreation) {
           if (initialCreation) {
-            const minArc = 1.39626;
-            const maxArc = Math.PI;
-            let arcAngle = (numAnswers <= 4) ? minArc : (numAnswers >= 10) ? maxArc : minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
-            const angleStart = -arcAngle / 2;
-            const angleEnd = arcAngle / 2;
-            originalAnswerTransforms = [];
-            for (let i = 0; i < numAnswers; i++) {
-              const canvas = document.createElement('canvas');
-              canvas.width = 256 * resolutionFactor;
-              canvas.height = 256 * resolutionFactor;
-              const ctx = canvas.getContext('2d');
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.fillStyle = "#007BFF";
-              drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-              ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-              ctx.fillStyle = "#FFFFFF";
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText("?", canvas.width / 2, canvas.height / 2);
-              const texture = new THREE.CanvasTexture(canvas);
-              texture.minFilter = THREE.LinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-              const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-              const mesh = new THREE.Mesh(geometry, material);
-              const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
-              const x = 0.8 * Math.sin(angle);
-              const z = -0.8 * Math.cos(angle);
-              mesh.position.set(x, 0, z);
-              // Orientar el panel hacia la cámara
-              const cameraWorldPos = new THREE.Vector3();
-              camera.getWorldPosition(cameraWorldPos);
-              const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
-              mesh.lookAt(lookAtPos);
-              mesh.userData.answer = 0;
-              answers.push(mesh);
-              scene.add(mesh);
-              originalAnswerTransforms.push({
-                position: mesh.position.clone(),
-                rotation: mesh.rotation.clone()
-              });
+            if (!initialAnswerTransforms) {
+              initialAnswerTransforms = [];
+              const transforms = [];
+              const minArc = 1.39626;
+              const maxArc = Math.PI;
+              let arcAngle = (numAnswers <= 4) ? minArc : (numAnswers >= 10) ? maxArc : minArc + ((numAnswers - 4) / (10 - 4)) * (maxArc - minArc);
+              const angleStart = -arcAngle / 2;
+              const angleEnd = arcAngle / 2;
+              for (let i = 0; i < numAnswers; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256 * resolutionFactor;
+                canvas.height = 256 * resolutionFactor;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#007BFF";
+                drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
+                ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
+                ctx.fillStyle = "#FFFFFF";
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("?", canvas.width / 2, canvas.height / 2);
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+                const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+                const mesh = new THREE.Mesh(geometry, material);
+                const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
+                const x = 0.8 * Math.sin(angle);
+                const z = -0.8 * Math.cos(angle);
+                mesh.position.set(x, 0, z);
+                // Orientar el panel hacia la cámara
+                const cameraWorldPos = new THREE.Vector3();
+                camera.getWorldPosition(cameraWorldPos);
+                const lookAtPos = new THREE.Vector3(cameraWorldPos.x, mesh.position.y, cameraWorldPos.z);
+                mesh.lookAt(lookAtPos);
+                transforms.push({
+                  position: mesh.position.clone(),
+                  rotation: mesh.rotation.clone()
+                });
+                answers.push(mesh);
+                scene.add(mesh);
+              }
+              initialAnswerTransforms = transforms;
+            } else {
+              // Usar la orientación guardada en el primer inicio
+              for (let i = 0; i < numAnswers; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256 * resolutionFactor;
+                canvas.height = 256 * resolutionFactor;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#007BFF";
+                drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
+                ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
+                ctx.fillStyle = "#FFFFFF";
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("?", canvas.width / 2, canvas.height / 2);
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+                const geometry = new THREE.PlaneGeometry(0.15, 0.15);
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(initialAnswerTransforms[i].position);
+                mesh.rotation.copy(initialAnswerTransforms[i].rotation);
+                answers.push(mesh);
+                scene.add(mesh);
+              }
             }
           } else {
             const wrongAnswers = new Set();
@@ -535,12 +565,54 @@ button, input {
         function animate() {
           renderer.setAnimationLoop(render);
         }
+        // Modificada drawLeaderboardSegment para recibir el leaderboard y dibujar cada fila
+        function drawLeaderboardSegment(leaderboardResults, playerPosition) {
+          if (!leaderboardMesh) return;
+          const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
+          const headerHeight = 40 * resolutionFactor;
+          const rowHeight = 30 * resolutionFactor;
+          const rows = leaderboardResults.length;
+          const canvasWidth = 512 * resolutionFactor;
+          const canvasHeight = headerHeight + rowHeight * rows;
+          canvas.width = canvasWidth;
+          canvas.height = canvasHeight;
+          ctx.fillStyle = "rgba(0,0,0,0.7)";
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+          // Dibujar cabecera
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = 'Bold ' + (28 * resolutionFactor) + 'px Arial';
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`Tabla de Clasificación`, canvasWidth / 2, headerHeight / 2);
+          // Dibujar cada fila
+          ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
+          leaderboardResults.forEach((data, index) => {
+            const y = headerHeight + rowHeight * index + rowHeight / 2;
+            if (playerPosition !== null && (index + 1) === playerPosition) {
+              ctx.fillStyle = "green";
+            } else {
+              ctx.fillStyle = "#FFFFFF";
+            }
+            const colWidth = canvasWidth / 3;
+            ctx.fillText(index + 1, colWidth / 2, y);
+            ctx.fillText(data.name, colWidth + colWidth / 2, y);
+            ctx.fillText(data.score, 2 * colWidth + colWidth / 2, y);
+          });
+          texture.needsUpdate = true;
+          const planeHeight = planeWidth * (canvasHeight / canvasWidth);
+          leaderboardMesh.geometry.dispose();
+          leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+          leaderboardMesh.position.set(0, 0.0, -1.2);
+          restartButtonMesh.position.set(0, -planeHeight * 0.6, -1.1);
+          scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
+          scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
+        }
         function render(timestamp, xrFrame) {
           renderer.render(scene, camera);
           // Oscilación vertical usando la posición base (como en el código original)
           answers.forEach((panel, index) => {
-            if (!originalAnswerTransforms[index]) return;
-            const baseY = originalAnswerTransforms[index].position.y;
+            if (!initialAnswerTransforms || !initialAnswerTransforms[index]) return;
+            const baseY = initialAnswerTransforms[index].position.y;
             panel.position.y = baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
           });
           // Actualizar chispas (spark systems)
@@ -727,7 +799,7 @@ button, input {
           let playerIndex = leaderboardResults.findIndex(r => r.name === playerName && r.score === finalScore);
           let playerPosition = (playerIndex >= 0) ? (playerIndex + 1) : null;
           createLeaderboardMesh();
-          drawLeaderboardSegment();
+          drawLeaderboardSegment(leaderboardResults, playerPosition);
         }
         function createLeaderboardMesh() {
           if (leaderboardMesh) scene.remove(leaderboardMesh);
@@ -762,31 +834,6 @@ button, input {
           scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
           scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -0.4, -1.1);
           scene.add(scrollDownButtonMesh);
-        }
-        function drawLeaderboardSegment() {
-          if (!leaderboardMesh) return;
-          const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
-          const lineHeight = 40 * resolutionFactor;
-          const extraLines = 4;
-          const canvasWidth = 512 * resolutionFactor;
-          const canvasHeight = lineHeight * (extraLines);
-          canvas.width = canvasWidth;
-          canvas.height = canvasHeight;
-          ctx.fillStyle = "rgba(0,0,0,0.7)";
-          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-          ctx.fillStyle = "#FFFFFF";
-          ctx.font = 'Bold ' + (28 * resolutionFactor) + 'px Arial';
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`Tabla de Clasificación`, canvasWidth / 2, lineHeight);
-          texture.needsUpdate = true;
-          const planeHeight = planeWidth * (canvasHeight / canvasWidth);
-          leaderboardMesh.geometry.dispose();
-          leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-          leaderboardMesh.position.set(0, 0.0, -1.2);
-          restartButtonMesh.position.set(0, -planeHeight * 0.6, -1.1);
-          scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
-          scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
         }
         function restartGame() {
           if (leaderboardMesh) scene.remove(leaderboardMesh);
@@ -991,7 +1038,7 @@ button, input {
           answersDiv.appendChild(btn);
         });
       }
-      // Modificación: en el modo HTML, al pulsar la respuesta se ilumina (verde si correcta, rojo si incorrecta) por 500 ms
+      // En la versión HTML, se aumenta el retardo en respuesta correcta a 1000 ms (igual que en AR)
       function handleHTMLAnswer(selected, btn) {
         if (gameOver) return;
         if (selected === correctAnswer) {
@@ -1006,7 +1053,7 @@ button, input {
           setTimeout(() => {
             btn.style.backgroundColor = "";
             nextHTMLQuestion();
-          }, 500);
+          }, 1000);
         } else {
           btn.style.backgroundColor = "red";
           wrongCount++;
