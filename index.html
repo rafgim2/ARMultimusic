@@ -484,7 +484,7 @@
         function updateAnswerObjects() {
           createAnswerObjects(selectedNumAnswers, false);
         }
-        // Animación de chispas (igual que en el código original)
+        // Animación de chispas (actualizada para que se muevan, desvanezcan y se eliminen)
         function createSparksEffect(position) {
           const count = 100;
           const positions = new Float32Array(count * 3);
@@ -1158,13 +1158,15 @@
           // Si AR es soportado, se inicia el modo AR usando el ARButton original
           initAR();
         } else {
-          // Si no, se muestra un botón "Iniciar Juego" para el modo HTML
+          // Si no, se muestra un botón "Iniciar Juego" para el modo HTML.
+          // Se relee el valor de 'numAnswers' antes de remover el overlay
           const startBtn = document.createElement('button');
           startBtn.style.fontSize = '16px';
           startBtn.style.padding = '10px 20px';
           startBtn.style.marginTop = '20px';
           startBtn.innerText = "Iniciar Juego";
           startBtn.onclick = () => {
+            selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
             overlay.remove();
             initHTML();
           };
