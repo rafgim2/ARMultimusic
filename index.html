@@ -484,7 +484,7 @@
         function updateAnswerObjects() {
           createAnswerObjects(selectedNumAnswers, false);
         }
-        // Animación de chispas (actualizada para que se muevan, desvanezcan y se eliminen)
+        // Animación de chispas (actualizada para mover, desvanecer y eliminar)
         function createSparksEffect(position) {
           const count = 100;
           const positions = new Float32Array(count * 3);
@@ -979,9 +979,11 @@
           answersDiv.appendChild(btn);
         });
       }
+      // Modificación: en el modo HTML, al pulsar la respuesta se ilumina (verde si correcta, rojo si incorrecta) por 500 ms
       function handleHTMLAnswer(selected, btn) {
         if (gameOver) return;
         if (selected === correctAnswer) {
+          btn.style.backgroundColor = "green";
           let responseTime = performance.now() - currentQuestionStartTime;
           correctResponseTimes.push(responseTime);
           correctCount++;
@@ -990,14 +992,19 @@
           successSound.currentTime = 0;
           successSound.play().catch(e => console.error(e));
           setTimeout(() => {
+            btn.style.backgroundColor = "";
             nextHTMLQuestion();
-          }, 1000);
+          }, 500);
         } else {
+          btn.style.backgroundColor = "red";
           wrongCount++;
           updateHTMLScore();
           const errorSound = document.getElementById('errorSound');
           errorSound.currentTime = 0;
           errorSound.play().catch(e => console.error(e));
+          setTimeout(() => {
+            btn.style.backgroundColor = "";
+          }, 500);
         }
       }
       function startHTMLCountdown() {
