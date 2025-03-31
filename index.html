@@ -96,6 +96,10 @@
         align-items: center;
         justify-content: center;
       }
+button, input {
+  border-radius: 0 !important;
+}
+
     </style>
   </head>
   <body>
@@ -996,7 +1000,7 @@
             nextHTMLQuestion();
           }, 500);
         } else {
-          btn.style.backgroundColor = "red";
+          btn.style.backgroundColor = "lightred";
           wrongCount++;
           updateHTMLScore();
           const errorSound = document.getElementById('errorSound');
