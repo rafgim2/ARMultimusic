@@ -436,7 +436,7 @@
           questionMesh.position.set(0, 0.3, -0.8);
           scene.add(questionMesh);
         }
-        // Modificada: si initialCreation es true, se guarda la orientación original en initialAnswerTransforms para usarla en reinicios
+        // Si initialCreation es true se guarda la orientación original en initialAnswerTransforms para usarla en reinicios
         function createAnswerObjects(numAnswers, initialCreation) {
           if (initialCreation) {
             if (!initialAnswerTransforms) {
@@ -565,7 +565,7 @@
         function animate() {
           renderer.setAnimationLoop(render);
         }
-        // Modificada drawLeaderboardSegment para recibir el leaderboard y dibujar cada fila
+        // Dibujar la tabla de clasificación (recibe los resultados y la posición del jugador)
         function drawLeaderboardSegment(leaderboardResults, playerPosition) {
           if (!leaderboardMesh) return;
           const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
@@ -602,14 +602,16 @@
           const planeHeight = planeWidth * (canvasHeight / canvasWidth);
           leaderboardMesh.geometry.dispose();
           leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-          leaderboardMesh.position.set(0, 0.0, -1.2);
-          restartButtonMesh.position.set(0, -planeHeight * 0.6, -1.1);
+          // Posicionar la tabla en la parte central
+          leaderboardMesh.position.set(0, 0, -1.2);
+          // Posicionar el botón de reiniciar encima de la tabla
+          restartButtonMesh.position.set(0, planeHeight/2 + 0.1, -1.1);
           scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
           scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
         }
         function render(timestamp, xrFrame) {
           renderer.render(scene, camera);
-          // Oscilación vertical usando la posición base (como en el código original)
+          // Oscilación vertical usando la posición base
           answers.forEach((panel, index) => {
             if (!initialAnswerTransforms || !initialAnswerTransforms[index]) return;
             const baseY = initialAnswerTransforms[index].position.y;
@@ -652,7 +654,7 @@
               endGame();
             }
           }
-          // Detección de colisiones por inputs de mano o posición de cámara
+          // Detección de colisiones (inputs de mano o cámara)
           const session = renderer.xr.getSession();
           let interactionPoints = [];
           if (session && xrFrame) {
@@ -690,6 +692,7 @@
                     correctResponseTimes.push(responseTime);
                     correctCount++;
                     const successSound = document.getElementById('successSound');
+                    // Clonar y reproducir el sonido inmediatamente
                     const successClone = successSound.cloneNode();
                     successClone.play().catch(e => console.error(e));
                     createSparksEffect(panel.position);
@@ -706,6 +709,7 @@
                   } else {
                     wrongCount++;
                     const errorSound = document.getElementById('errorSound');
+                    // Clonar y reproducir el sonido inmediatamente
                     const errorClone = errorSound.cloneNode();
                     errorClone.play().catch(e => console.error(e));
                     answers.forEach(a => a.material.color.set(0xff0000));
@@ -719,7 +723,7 @@
               }
             }
           } else {
-            // Detección de colisiones con botones (al finalizar el juego)
+            // Detección de colisiones con botones (final del juego)
             let finalButtons = [];
             if (restartButtonMesh) finalButtons.push(restartButtonMesh);
             if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
@@ -826,13 +830,11 @@
           leaderboardMesh.position.set(0, 0, -1.2);
           scene.add(leaderboardMesh);
           restartButtonMesh = createButton("Reiniciar");
-          restartButtonMesh.position.set(0, -0.8, -1.1);
+          // En AR, el botón de reiniciar se posicionará encima de la tabla (se ajusta en drawLeaderboardSegment)
           scene.add(restartButtonMesh);
           scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
-          scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, 0.5, -1.1);
           scene.add(scrollUpButtonMesh);
           scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
-          scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -0.4, -1.1);
           scene.add(scrollDownButtonMesh);
         }
         function restartGame() {
@@ -1038,7 +1040,7 @@
           answersDiv.appendChild(btn);
         });
       }
-      // En la versión HTML, se aumenta el retardo en respuesta correcta a 1000 ms (igual que en AR)
+      // En la versión HTML se clonan y reproducen inmediatamente los sonidos
       function handleHTMLAnswer(selected, btn) {
         if (gameOver) return;
         if (selected === correctAnswer) {
@@ -1047,9 +1049,10 @@
           correctResponseTimes.push(responseTime);
           correctCount++;
           updateHTMLScore();
+          // Reproducir sonido inmediatamente clonándolo
           const successSound = document.getElementById('successSound');
-          successSound.currentTime = 0;
-          successSound.play().catch(e => console.error(e));
+          const successClone = successSound.cloneNode();
+          successClone.play().catch(e => console.error(e));
           setTimeout(() => {
             btn.style.backgroundColor = "";
             nextHTMLQuestion();
@@ -1059,8 +1062,8 @@
           wrongCount++;
           updateHTMLScore();
           const errorSound = document.getElementById('errorSound');
-          errorSound.currentTime = 0;
-          errorSound.play().catch(e => console.error(e));
+          const errorClone = errorSound.cloneNode();
+          errorClone.play().catch(e => console.error(e));
           setTimeout(() => {
             btn.style.backgroundColor = "";
           }, 500);
@@ -1225,7 +1228,6 @@
           initAR();
         } else {
           // Si no, se muestra un botón "Iniciar Juego" para el modo HTML.
-          // Se relee el valor de 'numAnswers' antes de remover el overlay
           const startBtn = document.createElement('button');
           startBtn.style.fontSize = '16px';
           startBtn.style.padding = '10px 20px';
