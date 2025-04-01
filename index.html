@@ -1187,6 +1187,23 @@
 
       /***** INICIALIZACIÓN COMÚN: Overlay y elección de modo *****/
       window.addEventListener('DOMContentLoaded', async () => {
+        // Interceptamos la llamada para iniciar la sesión AR y capturamos el error.
+        if (navigator.xr) {
+          const originalRequestSession = navigator.xr.requestSession.bind(navigator.xr);
+          navigator.xr.requestSession = function (mode, options) {
+            return originalRequestSession(mode, options).catch(error => {
+              console.error("Error al iniciar la sesión AR:", error);
+              // Si falla, eliminamos el overlay y lanzamos la versión HTML
+              const overlay = document.getElementById('overlay');
+              if (overlay) {
+                overlay.remove();
+              }
+              initHTML();
+              throw error;
+            });
+          }
+        }
+        
         const overlay = document.createElement('div');
         overlay.id = 'overlay';
         overlay.innerHTML = `
@@ -1235,7 +1252,6 @@
           startBtn.innerText = "AR no compatible, Iniciar Juego HTML";
           startBtn.onclick = () => {
             selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-            // Actualizar el nombre del jugador antes de quitar el overlay
             playerName = document.getElementById('playerName').value.trim() || "Jugador";
             overlay.remove();
             initHTML();
