@@ -346,7 +346,7 @@
         // Al iniciar la sesión AR, arrancar la lógica del juego
         renderer.xr.addEventListener('sessionstart', () => {
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-          playerName = document.getElementById('playerName').value || "Jugador";
+          playerName = document.getElementById('playerName').value.trim() || "Jugador";
           createAnswerObjects(selectedNumAnswers, true);
           overlay.remove();
           generateQuestion();
@@ -1214,7 +1214,7 @@
         });
         updateLeaderboardPreview(4);
         selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-        playerName = document.getElementById('playerName').value || "Jugador";
+        playerName = document.getElementById('playerName').value.trim() || "Jugador";
         let arSupported = false;
         if (navigator.xr) {
           try {
@@ -1235,6 +1235,8 @@
           startBtn.innerText = "AR no compatible, Iniciar Juego HTML";
           startBtn.onclick = () => {
             selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+            // Actualizar el nombre del jugador antes de quitar el overlay
+            playerName = document.getElementById('playerName').value.trim() || "Jugador";
             overlay.remove();
             initHTML();
           };
