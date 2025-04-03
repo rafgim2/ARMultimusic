@@ -210,8 +210,7 @@
         let scoreMesh = null;
         let leaderboardMesh = null;
         let restartButtonMesh = null;
-        let scrollUpButtonMesh = null;
-        let scrollDownButtonMesh = null;
+        // Se eliminaron los botones scrollUpButtonMesh y scrollDownButtonMesh.
         let answers = [];
         let hasCollided = false;
         const resolutionFactor = 4;
@@ -626,10 +625,9 @@
           leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
           // Posicionar la tabla en la parte central
           leaderboardMesh.position.set(0, 0, -1.2);
-          // Posicionar el botón de reiniciar encima de la tabla
-          restartButtonMesh.position.set(0, planeHeight/2 + 0.1, -1.1);
-          scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
-          scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
+          // Posicionar el botón de reiniciar a la izquierda de la tabla,
+          // a la altura de los paneles de respuesta (se asume y = 0)
+          restartButtonMesh.position.set(-planeWidth / 2 - 0.1, 0, -1.1);
         }
         function render(timestamp, xrFrame) {
           renderer.render(scene, camera);
@@ -714,7 +712,6 @@
                     correctResponseTimes.push(responseTime);
                     correctCount++;
                     const successSound = document.getElementById('successSound');
-                    // Clonar y reproducir el sonido inmediatamente
                     const successClone = successSound.cloneNode();
                     successClone.play().catch(e => console.error(e));
                     createSparksEffect(panel.position);
@@ -731,7 +728,6 @@
                   } else {
                     wrongCount++;
                     const errorSound = document.getElementById('errorSound');
-                    // Clonar y reproducir el sonido inmediatamente
                     const errorClone = errorSound.cloneNode();
                     errorClone.play().catch(e => console.error(e));
                     answers.forEach(a => a.material.color.set(0xff0000));
@@ -745,11 +741,9 @@
               }
             }
           } else {
-            // Detección de colisiones con botones (final del juego)
+            // Detección de colisiones con botón (final del juego)
             let finalButtons = [];
             if (restartButtonMesh) finalButtons.push(restartButtonMesh);
-            if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
-            if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
             for (const btn of finalButtons) {
               if (!btn.visible) continue;
               const btnPos = new THREE.Vector3();
@@ -768,10 +762,6 @@
                       restartGame();
                       hasCollided = false;
                     }, 1000);
-                  } else if (btn === scrollUpButtonMesh) {
-                    setTimeout(() => { hasCollided = false; }, 500);
-                  } else if (btn === scrollDownButtonMesh) {
-                    setTimeout(() => { hasCollided = false; }, 500);
                   }
                   return;
                 }
@@ -830,8 +820,9 @@
         function createLeaderboardMesh() {
           if (leaderboardMesh) scene.remove(leaderboardMesh);
           if (restartButtonMesh) scene.remove(restartButtonMesh);
-          if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
-          if (scrollDownButtonMesh) scene.remove(scrollDownButtonMesh);
+          // Se eliminan los botones de scroll
+          leaderboardMesh = null;
+          restartButtonMesh = null;
           const dummyCanvas = document.createElement('canvas');
           dummyCanvas.width = 512;
           dummyCanvas.height = 512;
@@ -852,22 +843,14 @@
           leaderboardMesh.position.set(0, 0, -1.2);
           scene.add(leaderboardMesh);
           restartButtonMesh = createButton("Reiniciar");
-          // En AR, el botón de reiniciar se posicionará encima de la tabla (se ajusta en drawLeaderboardSegment)
+          // El botón de reiniciar se posicionará a la izquierda de la tabla
           scene.add(restartButtonMesh);
-          scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
-          scene.add(scrollUpButtonMesh);
-          scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
-          scene.add(scrollDownButtonMesh);
         }
         function restartGame() {
           if (leaderboardMesh) scene.remove(leaderboardMesh);
           if (restartButtonMesh) scene.remove(restartButtonMesh);
-          if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
-          if (scrollDownButtonMesh) scene.remove(scrollDownButtonMesh);
           leaderboardMesh = null;
           restartButtonMesh = null;
-          scrollUpButtonMesh = null;
-          scrollDownButtonMesh = null;
           correctCount = 0;
           wrongCount = 0;
           gameStartTime = performance.now();
@@ -898,11 +881,8 @@
           if (!gameOver) {
             objectsToIntersect = answers;
           } else {
-            let finalButtons = [];
-            if (restartButtonMesh) finalButtons.push(restartButtonMesh);
-            if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
-            if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
-            objectsToIntersect = finalButtons;
+            // Solo se considera el botón de reiniciar
+            objectsToIntersect = [restartButtonMesh];
           }
           const intersects = raycaster.intersectObjects(objectsToIntersect);
           if (intersects.length > 0 && !hasCollided) {
@@ -949,10 +929,6 @@
                   restartGame();
                   hasCollided = false;
                 }, 1000);
-              } else if (objHit === scrollUpButtonMesh) {
-                setTimeout(() => { hasCollided = false; }, 500);
-              } else if (objHit === scrollDownButtonMesh) {
-                setTimeout(() => { hasCollided = false; }, 500);
               }
             }
           }
@@ -1071,7 +1047,6 @@
           correctResponseTimes.push(responseTime);
           correctCount++;
           updateHTMLScore();
-          // Reproducir sonido inmediatamente clonándolo
           const successSound = document.getElementById('successSound');
           const successClone = successSound.cloneNode();
           successClone.play().catch(e => console.error(e));
