@@ -353,6 +353,14 @@
           selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
           playerName = document.getElementById('playerName').value.trim() || "Jugador";
           overlay.remove();
+          // Si hay una sesión XR activa, terminarla
+          if (renderer.xr && renderer.xr.getSession()) {
+            renderer.xr.getSession().end().catch(e => console.error(e));
+          }
+          // Remover el canvas de AR para evitar que tape el contenido HTML
+          if (renderer && renderer.domElement && renderer.domElement.parentNode) {
+            renderer.domElement.parentNode.removeChild(renderer.domElement);
+          }
           initHTML();
         };
         overlay.appendChild(htmlButton);
