@@ -75,6 +75,15 @@
         border-radius: 6px;
         padding: 4px;
       }
+      #leaderboardPreview table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      #leaderboardPreview th, #leaderboardPreview td {
+        border: 1px solid #666;
+        padding: 4px;
+        text-align: center;
+      }
       #playerName {
         padding: 10px;
         font-size: 16px;
@@ -333,6 +342,20 @@
         arButton.style.backgroundColor = 'green';
         arButton.style.color = 'white';
         overlay.appendChild(arButton);
+
+        // BOTÓN ADICIONAL: Iniciar versión HTML debajo del botón AR
+        const htmlButton = document.createElement('button');
+        htmlButton.innerText = "Iniciar versión HTML";
+        htmlButton.style.fontSize = '16px';
+        htmlButton.style.padding = '10px 20px';
+        htmlButton.style.marginTop = '10px';
+        htmlButton.onclick = () => {
+          selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+          playerName = document.getElementById('playerName').value.trim() || "Jugador";
+          overlay.remove();
+          initHTML();
+        };
+        overlay.appendChild(htmlButton);
 
         // Al iniciar la sesión AR, arrancar la lógica del juego
         renderer.xr.addEventListener('sessionstart', () => {
@@ -683,6 +706,7 @@
                     correctResponseTimes.push(responseTime);
                     correctCount++;
                     const successSound = document.getElementById('successSound');
+                    // Clonar y reproducir el sonido inmediatamente
                     const successClone = successSound.cloneNode();
                     successClone.play().catch(e => console.error(e));
                     createSparksEffect(panel.position);
@@ -699,6 +723,7 @@
                   } else {
                     wrongCount++;
                     const errorSound = document.getElementById('errorSound');
+                    // Clonar y reproducir el sonido inmediatamente
                     const errorClone = errorSound.cloneNode();
                     errorClone.play().catch(e => console.error(e));
                     answers.forEach(a => a.material.color.set(0xff0000));
@@ -819,6 +844,7 @@
           leaderboardMesh.position.set(0, 0, -1.2);
           scene.add(leaderboardMesh);
           restartButtonMesh = createButton("Reiniciar");
+          // En AR, el botón de reiniciar se posicionará encima de la tabla (se ajusta en drawLeaderboardSegment)
           scene.add(restartButtonMesh);
           scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
           scene.add(scrollUpButtonMesh);
@@ -1037,6 +1063,7 @@
           correctResponseTimes.push(responseTime);
           correctCount++;
           updateHTMLScore();
+          // Reproducir sonido inmediatamente clonándolo
           const successSound = document.getElementById('successSound');
           const successClone = successSound.cloneNode();
           successClone.play().catch(e => console.error(e));
@@ -1228,34 +1255,10 @@
           }
         }
         if (arSupported) {
-          // En dispositivos compatibles con AR, mostramos dos botones para elegir el modo.
-          const arBtn = document.createElement('button');
-          arBtn.style.fontSize = '16px';
-          arBtn.style.padding = '10px 20px';
-          arBtn.style.marginTop = '20px';
-          arBtn.innerText = "Iniciar AR";
-          arBtn.onclick = () => {
-            selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-            playerName = document.getElementById('playerName').value.trim() || "Jugador";
-            overlay.remove();
-            initAR();
-          };
-          overlay.appendChild(arBtn);
-
-          const htmlBtn = document.createElement('button');
-          htmlBtn.style.fontSize = '16px';
-          htmlBtn.style.padding = '10px 20px';
-          htmlBtn.style.marginTop = '20px';
-          htmlBtn.innerText = "Iniciar versión HTML";
-          htmlBtn.onclick = () => {
-            selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-            playerName = document.getElementById('playerName').value.trim() || "Jugador";
-            overlay.remove();
-            initHTML();
-          };
-          overlay.appendChild(htmlBtn);
+          // Si AR es soportado, se inicia el modo AR usando el ARButton original
+          initAR();
         } else {
-          // Si no es compatible con AR, mostramos un único botón para iniciar la versión HTML.
+          // Si no, se muestra un botón "Iniciar Juego" para el modo HTML.
           const startBtn = document.createElement('button');
           startBtn.style.fontSize = '16px';
           startBtn.style.padding = '10px 20px';
