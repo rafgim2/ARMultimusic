@@ -586,15 +586,27 @@
         function animate() {
           renderer.setAnimationLoop(render);
         }
-        // Dibujar la tabla de clasificación (recibe los resultados y la posición del jugador)
+        // Dibujar la tabla de clasificación (muestra 10 resultados centrados en la posición del jugador)
         function drawLeaderboardSegment(leaderboardResults, playerPosition) {
           if (!leaderboardMesh) return;
           const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
           const headerHeight = 40 * resolutionFactor;
           const rowHeight = 30 * resolutionFactor;
-          const rows = leaderboardResults.length;
+          const total = leaderboardResults.length;
+          const displayCount = Math.min(10, total);
+          let playerIndex;
+          if (playerPosition !== null) {
+            playerIndex = playerPosition - 1;
+          } else {
+            playerIndex = Math.floor(displayCount / 2);
+          }
+          let startIndex = Math.max(0, playerIndex - Math.floor(displayCount / 2));
+          if (startIndex + displayCount > total) {
+            startIndex = total - displayCount;
+          }
+          const displayResults = leaderboardResults.slice(startIndex, startIndex + displayCount);
           const canvasWidth = 512 * resolutionFactor;
-          const canvasHeight = headerHeight + rowHeight * rows;
+          const canvasHeight = headerHeight + rowHeight * displayCount;
           canvas.width = canvasWidth;
           canvas.height = canvasHeight;
           ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -605,17 +617,18 @@
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(`Tabla de Clasificación`, canvasWidth / 2, headerHeight / 2);
-          // Dibujar cada fila
+          // Dibujar cada fila del slice
           ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-          leaderboardResults.forEach((data, index) => {
+          displayResults.forEach((data, index) => {
+            const globalRank = startIndex + index + 1;
             const y = headerHeight + rowHeight * index + rowHeight / 2;
-            if (playerPosition !== null && (index + 1) === playerPosition) {
+            if (playerPosition !== null && globalRank === playerPosition) {
               ctx.fillStyle = "green";
             } else {
               ctx.fillStyle = "#FFFFFF";
             }
             const colWidth = canvasWidth / 3;
-            ctx.fillText(index + 1, colWidth / 2, y);
+            ctx.fillText(globalRank, colWidth / 2, y);
             ctx.fillText(data.name, colWidth + colWidth / 2, y);
             ctx.fillText(data.score, 2 * colWidth + colWidth / 2, y);
           });
@@ -625,8 +638,7 @@
           leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
           // Posicionar la tabla en la parte central
           leaderboardMesh.position.set(0, 0, -1.2);
-          // Posicionar el botón de reiniciar a la izquierda de la tabla,
-          // a la altura de los paneles de respuesta (se asume y = 0)
+          // Posicionar el botón de reiniciar a la izquierda de la tabla
           restartButtonMesh.position.set(-planeWidth / 2 - 0.1, 0, -1.1);
         }
         function render(timestamp, xrFrame) {
@@ -843,7 +855,7 @@
           leaderboardMesh.position.set(0, 0, -1.2);
           scene.add(leaderboardMesh);
           restartButtonMesh = createButton("Reiniciar");
-          // El botón de reiniciar se posicionará a la izquierda de la tabla
+          // Posicionar el botón de reiniciar a la izquierda de la tabla
           scene.add(restartButtonMesh);
         }
         function restartGame() {
