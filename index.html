@@ -1228,10 +1228,20 @@
           }
         }
         if (arSupported) {
-          // Si AR es soportado, se inicia el modo AR usando el ARButton original
-          initAR();
+          // En dispositivos compatibles con AR, mostramos dos botones para elegir el modo.
+          const arBtn = document.createElement('button');
+          arBtn.style.fontSize = '16px';
+          arBtn.style.padding = '10px 20px';
+          arBtn.style.marginTop = '20px';
+          arBtn.innerText = "Iniciar AR";
+          arBtn.onclick = () => {
+            selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
+            playerName = document.getElementById('playerName').value.trim() || "Jugador";
+            overlay.remove();
+            initAR();
+          };
+          overlay.appendChild(arBtn);
 
-          // Agregar botón para iniciar la versión HTML debajo del botón AR
           const htmlBtn = document.createElement('button');
           htmlBtn.style.fontSize = '16px';
           htmlBtn.style.padding = '10px 20px';
@@ -1245,7 +1255,7 @@
           };
           overlay.appendChild(htmlBtn);
         } else {
-          // Si no, se muestra un botón "Iniciar Juego" para el modo HTML.
+          // Si no es compatible con AR, mostramos un único botón para iniciar la versión HTML.
           const startBtn = document.createElement('button');
           startBtn.style.fontSize = '16px';
           startBtn.style.padding = '10px 20px';
